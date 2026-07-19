@@ -41,7 +41,9 @@ export class HttpConnection {
     });
 
     socket.on('error', (err: any) => {
-      console.error('Socket error in HttpConnection:', err);
+      if (__DEV__) {
+        console.error('Socket error in HttpConnection:', err);
+      }
       this.isClosed = true;
       socket.destroy();
       onClose(this);
@@ -139,7 +141,9 @@ export class HttpConnection {
       }
       this.socket.end();
     } catch (e) {
-      console.error('Failed to send HTTP response:', e);
+      if (__DEV__) {
+        console.error('Failed to send HTTP response:', e);
+      }
       this.socket.destroy();
     } finally {
       this.isClosed = true;
@@ -162,7 +166,9 @@ export class HttpConnection {
       }
       this.socket.write('\r\n');
     } catch (e) {
-      console.error('Failed to write stream headers:', e);
+      if (__DEV__) {
+        console.error('Failed to write stream headers:', e);
+      }
       this.isClosed = true;
       this.socket.destroy();
     }
@@ -175,7 +181,9 @@ export class HttpConnection {
     try {
       this.socket.write(chunk);
     } catch (e) {
-      console.error('Failed to write stream chunk:', e);
+      if (__DEV__) {
+        console.error('Failed to write stream chunk:', e);
+      }
       this.isClosed = true;
       this.socket.destroy();
     }
@@ -188,7 +196,9 @@ export class HttpConnection {
     try {
       this.socket.end();
     } catch (e) {
-      console.error('Failed to end stream:', e);
+      if (__DEV__) {
+        console.error('Failed to end stream:', e);
+      }
       this.socket.destroy();
     } finally {
       this.isClosed = true;

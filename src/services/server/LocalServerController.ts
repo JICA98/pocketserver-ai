@@ -35,7 +35,27 @@ function constantTimeEqual(a: string, b: string): boolean {
 
 const BEARER_RE = /^Bearer ([a-zA-Z0-9_-]+)$/;
 
-function mapFinishReason(result: CompletionResult): string {
+function sanitizeErrorMessage(err: Error): string {
+  if (__DEV__) {
+    return err.message;
+  }
+  if (
+    err.message?.includes('busy') ||
+    err.message?.includes('Queue limit')
+  ) {
+    return 'Server busy. Please try again later.';
+  }
+  if (err.message?.includes('No GGUF model')) {
+    return 'No model is currently loaded.';
+  }
+  if (
+    err.message?.includes('timed out') ||
+    err.message?.includes('aborted')
+  ) {
+    return 'Request timed out or was aborted.';
+  }
+  return 'Internal server error.';
+}
   if (result.stopped_eos) {
     return 'stop';
   }
@@ -170,7 +190,9 @@ export class LocalServerController {
       });
 
       this.server.on('error', (err: any) => {
-        console.error('Server error event:', err);
+        if (__DEV__) {
+          console.error('Server error event:', err);
+        }
         const errMsg = err.message || 'Port already in use or bind failed.';
         runInAction(() => {
           localServerStore.status = 'error';
@@ -272,7 +294,9 @@ export class LocalServerController {
         });
       }
     } catch (e) {
-      console.warn('Could not discover network IP address:', e);
+      if (__DEV__) {
+        console.warn('Could not discover network IP address:', e);
+      }
     }
   }
 
@@ -646,14 +670,15 @@ export class LocalServerController {
         if (conn.isClosed) {
           return;
         }
+        const sanitized = sanitizeErrorMessage(err);
         if (err.message?.includes('busy') || err.message?.includes('Queue limit')) {
-          sendApiError(conn, 429, 'Too Many Requests', corsHeaders, err.message, 'server_error', 'rate_limit_exceeded');
+          sendApiError(conn, 429, 'Too Many Requests', corsHeaders, sanitized, 'server_error', 'rate_limit_exceeded');
           localServerStore.addLogEntry('POST', req.path, 429, duration, err.message);
         } else if (err.message?.includes('No GGUF model')) {
-          sendApiError(conn, 503, 'Service Unavailable', corsHeaders, err.message, 'server_error', 'model_not_loaded');
+          sendApiError(conn, 503, 'Service Unavailable', corsHeaders, sanitized, 'server_error', 'model_not_loaded');
           localServerStore.addLogEntry('POST', req.path, 503, duration, err.message);
         } else {
-          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, err.message ?? 'Inference failed.', 'server_error', 'inference_error');
+          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, sanitized, 'server_error', 'inference_error');
           localServerStore.addLogEntry('POST', req.path, 500, duration, err.message);
         }
       });
@@ -747,8 +772,9 @@ export class LocalServerController {
         if (timedOut || conn.isClosed) {
           return;
         }
+        const sanitized = sanitizeErrorMessage(err);
         const errChunk = {
-          error: {message: err.message ?? 'Inference failed.', type: 'server_error'},
+          error: {message: sanitized, type: 'server_error'},
         };
         conn.sendStreamChunk(`data: ${JSON.stringify(errChunk)}\n\n`);
         conn.sendStreamChunk('data: [DONE]\n\n');
@@ -876,7 +902,8 @@ export class LocalServerController {
           if (conn.isClosed) {
             return;
           }
-          conn.sendStreamChunk(`data: ${JSON.stringify({error: {message: err.message}})}\n\n`);
+          const sanitized = sanitizeErrorMessage(err);
+          conn.sendStreamChunk(`data: ${JSON.stringify({error: {message: sanitized}})}\n\n`);
           conn.sendStreamChunk('data: [DONE]\n\n');
           conn.endStream();
           localServerStore.addLogEntry('POST', req.path, 500, Date.now() - startTime, err.message);

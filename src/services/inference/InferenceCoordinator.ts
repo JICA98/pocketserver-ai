@@ -155,7 +155,9 @@ export class InferenceCoordinator implements CompletionEngine {
     const onAbortActive = () => {
       if (engine) {
         engine.stopCompletion().catch(err => {
-          console.warn('[Coordinator] stopCompletion failed:', err);
+          if (__DEV__) {
+            console.warn('[Coordinator] stopCompletion failed:', err);
+          }
         });
       }
     };
@@ -177,7 +179,9 @@ export class InferenceCoordinator implements CompletionEngine {
 
       nextReq.resolve(result);
     } catch (err: any) {
-      console.error('[InferenceCoordinator] processQueue error:', err);
+      if (__DEV__) {
+        console.error('[InferenceCoordinator] processQueue error:', err);
+      }
       runInAction(() => {
         localServerStore.stats.requestsFailed += 1;
       });

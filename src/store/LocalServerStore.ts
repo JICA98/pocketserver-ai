@@ -200,12 +200,15 @@ export class LocalServerStore {
     statusCode: number,
     duration: number,
     error?: string,
+    ip?: string,
   ) {
     runInAction(() => {
-      // Cap log entries at 200 items in memory to prevent memory bloat
       if (this.logs.length >= 200) {
         this.logs.shift();
       }
+      const sanitizedIp = ip
+        ? ip.replace(/(\d+\.\d+\.)\d+\.\d+/, '$1xx.xx')
+        : undefined;
       this.logs.push({
         id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date().toLocaleTimeString(),
@@ -213,6 +216,7 @@ export class LocalServerStore {
         route,
         status: statusCode,
         duration,
+        ip: sanitizedIp,
         error,
       });
     });
