@@ -56,6 +56,8 @@ function sanitizeErrorMessage(err: Error): string {
   }
   return 'Internal server error.';
 }
+
+function mapFinishReason(result: CompletionResult): string {
   if (result.stopped_eos) {
     return 'stop';
   }
