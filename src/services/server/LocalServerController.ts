@@ -3,7 +3,84 @@ import DeviceInfo from 'react-native-device-info';
 import {runInAction} from 'mobx';
 
 import {localServerStore} from '../../store/LocalServerStore';
+import {modelStore} from '../../store';
+import {inferenceCoordinator} from '../inference/InferenceCoordinator';
 import {HttpRequest, HttpConnection} from './HttpServerAdapter';
+import {CompletionStreamData, CompletionResult} from '../../utils/completionTypes';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeId(): string {
+  return `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+function nowSecs(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+function mapFinishReason(result: CompletionResult): string {
+  if (result.stopped_eos) {
+    return 'stop';
+  }
+  if (result.stopped_limit || result.context_full || result.truncated) {
+    return 'length';
+  }
+  if (result.stopped_word || result.stopping_word) {
+    return 'stop';
+  }
+  if (result.interrupted) {
+    return 'stop';
+  }
+  return 'stop';
+}
+
+function parseBody(body: string): any {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
+function sendJson(
+  conn: HttpConnection,
+  statusCode: number,
+  statusText: string,
+  corsHeaders: Record<string, string>,
+  obj: any,
+) {
+  const body = JSON.stringify(obj);
+  conn.sendResponse(
+    statusCode,
+    statusText,
+    {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'Content-Length': String(Buffer.byteLength(body, 'utf8')),
+    },
+    body,
+  );
+}
+
+function sendApiError(
+  conn: HttpConnection,
+  statusCode: number,
+  statusText: string,
+  corsHeaders: Record<string, string>,
+  message: string,
+  type: string = 'invalid_request_error',
+  code: string | null = null,
+) {
+  sendJson(conn, statusCode, statusText, corsHeaders, {
+    error: {message, type, param: null, code},
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Controller
+// ---------------------------------------------------------------------------
 
 export class LocalServerController {
   private server: any = null;
@@ -182,23 +259,14 @@ export class LocalServerController {
         auth.substring(7) !== localServerStore.apiKey
       ) {
         const duration = Date.now() - startTime;
-        const errJson = JSON.stringify({
-          error: {
-            message: 'Incorrect API key provided.',
-            type: 'invalid_request_error',
-            param: null,
-            code: 'invalid_api_key',
-          },
-        });
-        conn.sendResponse(
+        sendApiError(
+          conn,
           401,
           'Unauthorized',
-          {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-            'Content-Length': String(errJson.length),
-          },
-          errJson,
+          corsHeaders,
+          'Incorrect API key provided.',
+          'invalid_request_error',
+          'invalid_api_key',
         );
         localServerStore.addLogEntry(
           req.method,
@@ -226,10 +294,13 @@ export class LocalServerController {
           this.handleVersion(req, conn, corsHeaders, startTime);
           break;
         case '/v1/models':
+          this.handleModels(req, conn, corsHeaders, startTime);
+          break;
         case '/v1/chat/completions':
+          this.handleChatCompletions(req, conn, corsHeaders, startTime);
+          break;
         case '/v1/completions':
-          // Placeholder response until Phase 4 and Phase 5 are fully implemented.
-          this.handlePlaceholderEndpoint(req, conn, corsHeaders, startTime);
+          this.handleCompletions(req, conn, corsHeaders, startTime);
           break;
         default:
           this.handleNotFound(req, conn, corsHeaders, startTime);
@@ -243,31 +314,26 @@ export class LocalServerController {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // GET /
+  // -------------------------------------------------------------------------
   private handleHome(
     req: HttpRequest,
     conn: HttpConnection,
     corsHeaders: Record<string, string>,
     startTime: number,
   ) {
-    const resObj = {
+    sendJson(conn, 200, 'OK', corsHeaders, {
       message: 'Welcome to PocketServer AI on-device LLM server!',
       status: 'running',
-      endpoints: ['/health', '/version', '/v1/models', '/v1/chat/completions'],
-    };
-    const body = JSON.stringify(resObj);
-    conn.sendResponse(
-      200,
-      'OK',
-      {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Content-Length': String(body.length),
-      },
-      body,
-    );
+      endpoints: ['/health', '/version', '/v1/models', '/v1/chat/completions', '/v1/completions'],
+    });
     localServerStore.addLogEntry('GET', req.path, 200, Date.now() - startTime);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /health
+  // -------------------------------------------------------------------------
   private handleHealth(
     req: HttpRequest,
     conn: HttpConnection,
@@ -275,87 +341,485 @@ export class LocalServerController {
     startTime: number,
   ) {
     const modelLoaded = localServerStore.isModelReady;
-    const resObj = {
+    sendJson(conn, 200, 'OK', corsHeaders, {
       status: 'ok',
       server: 'running',
       model_loaded: modelLoaded,
       inference_ready: modelLoaded,
-      busy: false,
-    };
-    const body = JSON.stringify(resObj);
-    conn.sendResponse(
-      200,
-      'OK',
-      {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Content-Length': String(body.length),
-      },
-      body,
-    );
+      busy: localServerStore.activeRequests > 0,
+    });
     localServerStore.addLogEntry('GET', req.path, 200, Date.now() - startTime);
   }
 
+  // -------------------------------------------------------------------------
+  // GET /version
+  // -------------------------------------------------------------------------
   private handleVersion(
     req: HttpRequest,
     conn: HttpConnection,
     corsHeaders: Record<string, string>,
     startTime: number,
   ) {
-    const resObj = {
+    sendJson(conn, 200, 'OK', corsHeaders, {
       version: DeviceInfo.getVersion(),
       server_version: '1.0.0',
       api_version: 'v1',
-    };
-    const body = JSON.stringify(resObj);
-    conn.sendResponse(
-      200,
-      'OK',
-      {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Content-Length': String(body.length),
-      },
-      body,
-    );
+    });
     localServerStore.addLogEntry('GET', req.path, 200, Date.now() - startTime);
   }
 
-  private handlePlaceholderEndpoint(
+  // -------------------------------------------------------------------------
+  // GET /v1/models
+  // -------------------------------------------------------------------------
+  private handleModels(
     req: HttpRequest,
     conn: HttpConnection,
     corsHeaders: Record<string, string>,
     startTime: number,
   ) {
-    const errObj = {
-      error: {
-        message:
-          'Endpoint is registered but inference services are still starting or not fully configured.',
-        type: 'server_error',
-        param: null,
-        code: 'inference_pending',
-      },
-    };
-    const body = JSON.stringify(errObj);
-    conn.sendResponse(
-      503,
-      'Service Unavailable',
-      {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Content-Length': String(body.length),
-      },
-      body,
-    );
-    localServerStore.addLogEntry(
-      req.method,
-      req.path,
-      503,
-      Date.now() - startTime,
-      'Inference Coordinator not initialized yet.',
-    );
+    if (req.method !== 'GET') {
+      sendApiError(conn, 405, 'Method Not Allowed', corsHeaders, 'Method not allowed.');
+      localServerStore.addLogEntry(req.method, req.path, 405, Date.now() - startTime);
+      return;
+    }
+
+    const activeModel = modelStore.activeModel;
+    const data = activeModel
+      ? [
+          {
+            id: activeModel.id,
+            object: 'model',
+            created: nowSecs(),
+            owned_by: 'local',
+            name: activeModel.name,
+          },
+        ]
+      : [];
+
+    sendJson(conn, 200, 'OK', corsHeaders, {object: 'list', data});
+    localServerStore.addLogEntry('GET', req.path, 200, Date.now() - startTime);
   }
 
+  // -------------------------------------------------------------------------
+  // POST /v1/chat/completions
+  // -------------------------------------------------------------------------
+  private handleChatCompletions(
+    req: HttpRequest,
+    conn: HttpConnection,
+    corsHeaders: Record<string, string>,
+    startTime: number,
+  ) {
+    if (req.method !== 'POST') {
+      sendApiError(conn, 405, 'Method Not Allowed', corsHeaders, 'Method not allowed.');
+      localServerStore.addLogEntry(req.method, req.path, 405, Date.now() - startTime);
+      return;
+    }
+
+    // Model must be loaded
+    if (!localServerStore.isModelReady) {
+      sendApiError(
+        conn, 503, 'Service Unavailable', corsHeaders,
+        'No model is loaded. Load a model in PocketServer AI first.',
+        'server_error', 'model_not_loaded',
+      );
+      localServerStore.addLogEntry(req.method, req.path, 503, Date.now() - startTime, 'No model loaded.');
+      return;
+    }
+
+    // Parse body
+    const parsed = parseBody(req.body);
+    if (!parsed) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'Invalid JSON body.', 'invalid_request_error', 'invalid_json');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid JSON.');
+      return;
+    }
+
+    // Validate messages
+    const {messages, stream = false, temperature, top_p, max_tokens, stop, model} = parsed;
+    const validationError = this.validateChatMessages(messages);
+    if (validationError) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, validationError, 'invalid_request_error', 'invalid_messages');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, validationError);
+      return;
+    }
+
+    // Validate numeric params
+    if (temperature !== undefined && (typeof temperature !== 'number' || temperature < 0 || temperature > 2)) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'temperature must be a number between 0 and 2.', 'invalid_request_error', 'invalid_temperature');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid temperature.');
+      return;
+    }
+    if (top_p !== undefined && (typeof top_p !== 'number' || top_p <= 0 || top_p > 1)) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'top_p must be a number between 0 and 1.', 'invalid_request_error', 'invalid_top_p');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid top_p.');
+      return;
+    }
+
+    // Unsupported: tools/response_format
+    if (parsed.tools || parsed.functions) {
+      sendApiError(
+        conn, 400, 'Bad Request', corsHeaders,
+        'Tool calls are not supported by the on-device inference server.',
+        'invalid_request_error', 'tools_not_supported',
+      );
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Tools not supported.');
+      return;
+    }
+
+    // Build completion params
+    const completionParams: any = {
+      messages,
+      requestSource: 'server',
+    };
+    if (temperature !== undefined) {
+      completionParams.temperature = temperature;
+    }
+    if (top_p !== undefined) {
+      completionParams.top_p = top_p;
+    }
+    if (max_tokens !== undefined && typeof max_tokens === 'number') {
+      completionParams.n_predict = max_tokens;
+    }
+    if (stop !== undefined) {
+      completionParams.stop = Array.isArray(stop) ? stop : [stop];
+    }
+
+    const completionId = makeId();
+    const activeModelId = modelStore.activeModel?.id ?? model ?? 'local-model';
+
+    if (stream) {
+      this.handleChatCompletionStream(
+        req, conn, corsHeaders, startTime,
+        completionParams, completionId, activeModelId,
+      );
+    } else {
+      this.handleChatCompletionNonStream(
+        req, conn, corsHeaders, startTime,
+        completionParams, completionId, activeModelId,
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /v1/chat/completions — non-streaming
+  // -------------------------------------------------------------------------
+  private handleChatCompletionNonStream(
+    req: HttpRequest,
+    conn: HttpConnection,
+    corsHeaders: Record<string, string>,
+    startTime: number,
+    completionParams: any,
+    completionId: string,
+    activeModelId: string,
+  ) {
+    const abortController = new AbortController();
+    completionParams.signal = abortController.signal;
+
+    // Abort on socket close
+    conn.socket.once('close', () => abortController.abort());
+
+    inferenceCoordinator
+      .completion(completionParams)
+      .then((result: CompletionResult) => {
+        const duration = Date.now() - startTime;
+        const finishReason = mapFinishReason(result);
+        const response = {
+          id: completionId,
+          object: 'chat.completion',
+          created: nowSecs(),
+          model: activeModelId,
+          choices: [
+            {
+              index: 0,
+              message: {role: 'assistant', content: result.text ?? result.content ?? ''},
+              finish_reason: finishReason,
+            },
+          ],
+          usage: {
+            prompt_tokens: result.tokens_evaluated ?? null,
+            completion_tokens: result.tokens_predicted ?? null,
+            total_tokens:
+              result.tokens_evaluated != null && result.tokens_predicted != null
+                ? result.tokens_evaluated + result.tokens_predicted
+                : null,
+          },
+        };
+        sendJson(conn, 200, 'OK', corsHeaders, response);
+        localServerStore.addLogEntry('POST', req.path, 200, duration);
+      })
+      .catch((err: Error) => {
+        const duration = Date.now() - startTime;
+        if (conn.isClosed) {
+          return;
+        }
+        if (err.message?.includes('busy') || err.message?.includes('Queue limit')) {
+          sendApiError(conn, 429, 'Too Many Requests', corsHeaders, err.message, 'server_error', 'rate_limit_exceeded');
+          localServerStore.addLogEntry('POST', req.path, 429, duration, err.message);
+        } else if (err.message?.includes('No GGUF model')) {
+          sendApiError(conn, 503, 'Service Unavailable', corsHeaders, err.message, 'server_error', 'model_not_loaded');
+          localServerStore.addLogEntry('POST', req.path, 503, duration, err.message);
+        } else {
+          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, err.message ?? 'Inference failed.', 'server_error', 'inference_error');
+          localServerStore.addLogEntry('POST', req.path, 500, duration, err.message);
+        }
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /v1/chat/completions — SSE streaming
+  // -------------------------------------------------------------------------
+  private handleChatCompletionStream(
+    req: HttpRequest,
+    conn: HttpConnection,
+    corsHeaders: Record<string, string>,
+    startTime: number,
+    completionParams: any,
+    completionId: string,
+    activeModelId: string,
+  ) {
+    const abortController = new AbortController();
+    completionParams.signal = abortController.signal;
+
+    // Send SSE headers immediately
+    conn.sendStreamHeaders(200, 'OK', {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+      Connection: 'keep-alive',
+    });
+
+    // Emit role delta at the start
+    const roleDelta = {
+      id: completionId,
+      object: 'chat.completion.chunk',
+      created: nowSecs(),
+      model: activeModelId,
+      choices: [{index: 0, delta: {role: 'assistant'}, finish_reason: null}],
+    };
+    conn.sendStreamChunk(`data: ${JSON.stringify(roleDelta)}\n\n`);
+
+    // Abort on client disconnect
+    conn.socket.once('close', () => abortController.abort());
+
+    const streamCallback = (data: CompletionStreamData) => {
+      if (conn.isClosed) {
+        return;
+      }
+      const token = data.token ?? data.content ?? '';
+      if (!token) {
+        return;
+      }
+      const chunk = {
+        id: completionId,
+        object: 'chat.completion.chunk',
+        created: nowSecs(),
+        model: activeModelId,
+        choices: [{index: 0, delta: {content: token}, finish_reason: null}],
+      };
+      conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
+    };
+
+    inferenceCoordinator
+      .completion(completionParams, streamCallback)
+      .then((result: CompletionResult) => {
+        if (conn.isClosed) {
+          return;
+        }
+        const finishReason = mapFinishReason(result);
+        // Final chunk with finish_reason
+        const finalChunk = {
+          id: completionId,
+          object: 'chat.completion.chunk',
+          created: nowSecs(),
+          model: activeModelId,
+          choices: [{index: 0, delta: {}, finish_reason: finishReason}],
+        };
+        conn.sendStreamChunk(`data: ${JSON.stringify(finalChunk)}\n\n`);
+        conn.sendStreamChunk('data: [DONE]\n\n');
+        conn.endStream();
+        localServerStore.addLogEntry('POST', req.path, 200, Date.now() - startTime);
+      })
+      .catch((err: Error) => {
+        if (conn.isClosed) {
+          return;
+        }
+        const errChunk = {
+          error: {message: err.message ?? 'Inference failed.', type: 'server_error'},
+        };
+        conn.sendStreamChunk(`data: ${JSON.stringify(errChunk)}\n\n`);
+        conn.sendStreamChunk('data: [DONE]\n\n');
+        conn.endStream();
+        localServerStore.addLogEntry('POST', req.path, 500, Date.now() - startTime, err.message);
+      });
+  }
+
+  // -------------------------------------------------------------------------
+  // POST /v1/completions  (text completions — prompt string)
+  // -------------------------------------------------------------------------
+  private handleCompletions(
+    req: HttpRequest,
+    conn: HttpConnection,
+    corsHeaders: Record<string, string>,
+    startTime: number,
+  ) {
+    if (req.method !== 'POST') {
+      sendApiError(conn, 405, 'Method Not Allowed', corsHeaders, 'Method not allowed.');
+      localServerStore.addLogEntry(req.method, req.path, 405, Date.now() - startTime);
+      return;
+    }
+
+    if (!localServerStore.isModelReady) {
+      sendApiError(
+        conn, 503, 'Service Unavailable', corsHeaders,
+        'No model is loaded. Load a model in PocketServer AI first.',
+        'server_error', 'model_not_loaded',
+      );
+      localServerStore.addLogEntry(req.method, req.path, 503, Date.now() - startTime, 'No model loaded.');
+      return;
+    }
+
+    const parsed = parseBody(req.body);
+    if (!parsed) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'Invalid JSON body.', 'invalid_request_error', 'invalid_json');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid JSON.');
+      return;
+    }
+
+    const {prompt, stream = false, temperature, top_p, max_tokens, stop, model} = parsed;
+
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, "'prompt' must be a non-empty string.", 'invalid_request_error', 'invalid_prompt');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid prompt.');
+      return;
+    }
+
+    if (Array.isArray(prompt)) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'Array prompts are not supported. Please provide a single string.', 'invalid_request_error', 'unsupported_prompt_type');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Array prompt not supported.');
+      return;
+    }
+
+    const completionParams: any = {
+      prompt,
+      requestSource: 'server',
+    };
+    if (temperature !== undefined) {
+      completionParams.temperature = temperature;
+    }
+    if (top_p !== undefined) {
+      completionParams.top_p = top_p;
+    }
+    if (max_tokens !== undefined && typeof max_tokens === 'number') {
+      completionParams.n_predict = max_tokens;
+    }
+    if (stop !== undefined) {
+      completionParams.stop = Array.isArray(stop) ? stop : [stop];
+    }
+
+    const completionId = `cmpl-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const activeModelId = modelStore.activeModel?.id ?? model ?? 'local-model';
+    const abortController = new AbortController();
+    completionParams.signal = abortController.signal;
+    conn.socket.once('close', () => abortController.abort());
+
+    if (stream) {
+      conn.sendStreamHeaders(200, 'OK', {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        Connection: 'keep-alive',
+      });
+
+      const streamCallback = (data: CompletionStreamData) => {
+        if (conn.isClosed) {
+          return;
+        }
+        const token = data.token ?? data.content ?? '';
+        if (!token) {
+          return;
+        }
+        const chunk = {
+          id: completionId,
+          object: 'text_completion',
+          created: nowSecs(),
+          model: activeModelId,
+          choices: [{text: token, index: 0, finish_reason: null}],
+        };
+        conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
+      };
+
+      inferenceCoordinator
+        .completion(completionParams, streamCallback)
+        .then((result: CompletionResult) => {
+          if (conn.isClosed) {
+            return;
+          }
+          const finishReason = mapFinishReason(result);
+          const finalChunk = {
+            id: completionId,
+            object: 'text_completion',
+            created: nowSecs(),
+            model: activeModelId,
+            choices: [{text: '', index: 0, finish_reason: finishReason}],
+          };
+          conn.sendStreamChunk(`data: ${JSON.stringify(finalChunk)}\n\n`);
+          conn.sendStreamChunk('data: [DONE]\n\n');
+          conn.endStream();
+          localServerStore.addLogEntry('POST', req.path, 200, Date.now() - startTime);
+        })
+        .catch((err: Error) => {
+          if (conn.isClosed) {
+            return;
+          }
+          conn.sendStreamChunk(`data: ${JSON.stringify({error: {message: err.message}})}\n\n`);
+          conn.sendStreamChunk('data: [DONE]\n\n');
+          conn.endStream();
+          localServerStore.addLogEntry('POST', req.path, 500, Date.now() - startTime, err.message);
+        });
+    } else {
+      inferenceCoordinator
+        .completion(completionParams)
+        .then((result: CompletionResult) => {
+          const duration = Date.now() - startTime;
+          sendJson(conn, 200, 'OK', corsHeaders, {
+            id: completionId,
+            object: 'text_completion',
+            created: nowSecs(),
+            model: activeModelId,
+            choices: [
+              {
+                text: result.text ?? result.content ?? '',
+                index: 0,
+                finish_reason: mapFinishReason(result),
+              },
+            ],
+            usage: {
+              prompt_tokens: result.tokens_evaluated ?? null,
+              completion_tokens: result.tokens_predicted ?? null,
+              total_tokens:
+                result.tokens_evaluated != null && result.tokens_predicted != null
+                  ? result.tokens_evaluated + result.tokens_predicted
+                  : null,
+            },
+          });
+          localServerStore.addLogEntry('POST', req.path, 200, duration);
+        })
+        .catch((err: Error) => {
+          const duration = Date.now() - startTime;
+          if (conn.isClosed) {
+            return;
+          }
+          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, err.message ?? 'Inference failed.', 'server_error', 'inference_error');
+          localServerStore.addLogEntry('POST', req.path, 500, duration, err.message);
+        });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 404 fallback
+  // -------------------------------------------------------------------------
   private handleNotFound(
     req: HttpRequest,
     conn: HttpConnection,
@@ -373,6 +837,35 @@ export class LocalServerController {
       404,
       Date.now() - startTime,
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Validation helpers
+  // -------------------------------------------------------------------------
+  private validateChatMessages(messages: any): string | null {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return "'messages' must be a non-empty array.";
+    }
+    const allowedRoles = new Set(['system', 'user', 'assistant']);
+    for (const msg of messages) {
+      if (!msg || typeof msg !== 'object') {
+        return 'Each message must be an object.';
+      }
+      if (!allowedRoles.has(msg.role)) {
+        return `Unsupported role '${msg.role}'. Allowed: system, user, assistant.`;
+      }
+      if (typeof msg.content !== 'string' && !Array.isArray(msg.content)) {
+        return "Each message must have a 'content' string field.";
+      }
+      if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part?.type && part.type !== 'text') {
+            return `Multimodal content type '${part.type}' is not supported.`;
+          }
+        }
+      }
+    }
+    return null;
   }
 }
 

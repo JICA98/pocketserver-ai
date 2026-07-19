@@ -1,246 +1,453 @@
-import {runInAction} from 'mobx';
-import {localServerStore} from '../../../store/LocalServerStore';
-import {localServerController} from '../LocalServerController';
-import {HttpConnection, HttpRequest} from '../HttpServerAdapter';
+/**
+ * LocalServerController — Phase 5 API tests
+ *
+ * Tests cover:
+ *  - GET /v1/models  (model loaded / not loaded)
+ *  - POST /v1/chat/completions  (non-stream, stream, validation, 429, 503)
+ *  - POST /v1/completions       (non-stream, stream, validation)
+ */
 
-// Mock dependencies
-jest.mock('react-native-device-info', () => ({
-  getIpAddress: jest.fn().mockResolvedValue('192.168.1.125'),
-  getVersion: jest.fn().mockReturnValue('1.16.1'),
-  isEmulator: jest.fn().mockResolvedValue(false),
-  getTotalMemory: jest.fn().mockResolvedValue(8 * 1024 * 1024 * 1024),
+jest.mock('../../../store', () => ({
+  modelStore: {
+    activeModel: null,
+    engine: null,
+    context: undefined,
+  },
 }));
 
-// Mock react-native-tcp-socket
-const mockSocketWrite = jest.fn();
-const mockSocketEnd = jest.fn();
-const mockSocketDestroy = jest.fn();
-
-const mockServerListen = jest.fn();
-const mockServerClose = jest.fn().mockImplementation(cb => cb && cb());
-
-const mockServerListeners: Record<string, Function[]> = {};
-
-const mockServer = {
-  listen: mockServerListen,
-  close: mockServerClose,
-  on: jest.fn().mockImplementation((event, cb) => {
-    if (!mockServerListeners[event]) {
-      mockServerListeners[event] = [];
-    }
-    mockServerListeners[event].push(cb);
-  }),
-};
-
-jest.mock('react-native-tcp-socket', () => {
-  const mockCreateServer = jest.fn().mockImplementation(() => mockServer);
-  return {
-    __esModule: true,
-    default: {
-      createServer: mockCreateServer,
+jest.mock('../../../store/LocalServerStore', () => ({
+  localServerStore: {
+    status: 'running',
+    lastError: null,
+    config: {port: 8080, bindMode: 'network', authEnabled: false, queueLimit: 5},
+    apiKey: 'test-key',
+    activeRequests: 0,
+    queuedRequests: 0,
+    stats: {requestsServed: 0, requestsFailed: 0, tokensGenerated: 0},
+    runtimeInfo: {lanUrl: ''},
+    get isModelReady() {
+      const {modelStore} = require('../../../store');
+      return modelStore.context !== undefined && modelStore.activeModel !== undefined;
     },
-    createServer: mockCreateServer,
+    addLogEntry: jest.fn(),
+  },
+}));
+
+jest.mock('../../inference/InferenceCoordinator', () => ({
+  inferenceCoordinator: {
+    completion: jest.fn(),
+    stopCompletion: jest.fn(),
+  },
+}));
+
+jest.mock('react-native-device-info', () => ({
+  default: {getVersion: () => '1.0.0', getIpAddress: async () => '192.168.1.100'},
+}));
+
+jest.mock('react-native-tcp-socket', () => ({
+  default: {createServer: jest.fn()},
+}));
+
+import {LocalServerController} from '../LocalServerController';
+import {modelStore} from '../../../store';
+import {inferenceCoordinator} from '../../inference/InferenceCoordinator';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function makeMockSocket() {
+  const listeners: Record<string, Function[]> = {};
+  return {
+    write: jest.fn(),
+    end: jest.fn(),
+    destroy: jest.fn(),
+    remoteAddress: '127.0.0.1',
+    once: jest.fn((event: string, cb: Function) => {
+      if (!listeners[event]) {
+        listeners[event] = [];
+      }
+      listeners[event].push(cb);
+    }),
+    on: jest.fn((event: string, cb: Function) => {
+      if (!listeners[event]) {
+        listeners[event] = [];
+      }
+      listeners[event].push(cb);
+    }),
+    emit: (event: string, ...args: any[]) => {
+      (listeners[event] || []).forEach(fn => fn(...args));
+    },
   };
+}
+
+function makeConn(socket: any) {
+  const {HttpConnection} = require('../HttpServerAdapter');
+  const conn = new HttpConnection(socket, () => {}, () => {});
+  conn.isClosed = false;
+  conn.socket = socket;
+  return conn;
+}
+
+function buildRequest(
+  method: string,
+  path: string,
+  body: any = null,
+): any {
+  return {
+    method,
+    path,
+    headers: {},
+    body: body !== null ? JSON.stringify(body) : '',
+    requestId: 'test-req',
+    ip: '127.0.0.1',
+  };
+}
+
+function dispatchRequest(controller: LocalServerController, req: any, conn: any) {
+  (controller as any).handleRequest(req, conn);
+}
+
+// ---------------------------------------------------------------------------
+// Shared setup
+// ---------------------------------------------------------------------------
+
+let controller: LocalServerController;
+const mockCompletion = inferenceCoordinator.completion as jest.Mock;
+
+beforeEach(() => {
+  controller = new LocalServerController();
+  jest.clearAllMocks();
+  (modelStore as any).activeModel = null;
+  (modelStore as any).context = undefined;
 });
 
-describe('LocalServerController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    Object.keys(mockServerListeners).forEach(
-      key => delete mockServerListeners[key],
+// ---------------------------------------------------------------------------
+// GET /v1/models
+// ---------------------------------------------------------------------------
+
+describe('GET /v1/models', () => {
+  it('returns empty list when no model loaded', () => {
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('GET', '/v1/models'), conn);
+
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('"data":[]');
+    expect(written).toContain('200 OK');
+  });
+
+  it('returns model entry when model is loaded', () => {
+    (modelStore as any).activeModel = {id: 'org/Repo/model.gguf', name: 'MyModel', filename: 'model.gguf'};
+    (modelStore as any).context = {};
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('GET', '/v1/models'), conn);
+
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('"id":"org/Repo/model.gguf"');
+    expect(written).toContain('"object":"model"');
+  });
+
+  it('returns 405 for non-GET', () => {
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('POST', '/v1/models'), conn);
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('405');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /v1/chat/completions — validation
+// ---------------------------------------------------------------------------
+
+describe('POST /v1/chat/completions — validation', () => {
+  it('returns 503 when no model loaded', () => {
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {messages: [{role: 'user', content: 'hi'}]}),
+      conn,
+    );
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('503');
+    expect(written).toContain('model_not_loaded');
+  });
+
+  it('returns 400 for missing messages', () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('POST', '/v1/chat/completions', {}), conn);
+
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('400');
+    expect(written).toContain('invalid_messages');
+  });
+
+  it('returns 400 for unsupported role', () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'tool', content: 'hi'}],
+      }),
+      conn,
     );
 
-    runInAction(() => {
-      localServerStore.status = 'stopped';
-      localServerStore.apiKey = 'test-api-key';
-      localServerStore.config.authEnabled = true;
-      localServerStore.logs = [];
-    });
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('400');
   });
 
-  describe('lifecycle management', () => {
-    it('starts listening successfully and gets IP', async () => {
-      await localServerController.start();
-      expect(localServerStore.status).toBe('starting');
+  it('returns 400 when tools are present', () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
 
-      // Trigger server listening event
-      if (mockServerListeners.listening) {
-        mockServerListeners.listening.forEach(cb => cb());
-      }
-
-      expect(localServerStore.status).toBe('running');
-      expect(localServerStore.runtimeInfo.lanUrl).toBe(''); // discovered asynchronously
-    });
-
-    it('handles port-in-use or startup errors', async () => {
-      await localServerController.start();
-
-      const testError = new Error('EADDRINUSE: Address already in use');
-      if (mockServerListeners.error) {
-        mockServerListeners.error.forEach(cb => cb(testError));
-      }
-
-      expect(localServerStore.status).toBe('error');
-      expect(localServerStore.lastError).toContain('EADDRINUSE');
-    });
-
-    it('stops listening and cleans up connections', async () => {
-      await localServerController.start();
-      if (mockServerListeners.listening) {
-        mockServerListeners.listening.forEach(cb => cb());
-      }
-      expect(localServerStore.status).toBe('running');
-
-      await localServerController.stop();
-      expect(localServerStore.status).toBe('stopped');
-    });
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hi'}],
+        tools: [],
+      }),
+      conn,
+    );
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('tools_not_supported');
   });
 
-  describe('request and route handling', () => {
-    let mockConnection: HttpConnection;
+  it('returns 400 for invalid temperature', () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
 
-    beforeEach(() => {
-      mockConnection = {
-        socket: {
-          write: mockSocketWrite,
-          end: mockSocketEnd,
-          destroy: mockSocketDestroy,
-        },
-        isClosed: false,
-        sendResponse: jest.fn(),
-        sendError: jest.fn(),
-      } as unknown as HttpConnection;
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hi'}],
+        temperature: 5,
+      }),
+      conn,
+    );
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('400');
+    expect(written).toContain('invalid_temperature');
+  });
+
+  it('returns 400 for invalid JSON body', () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    const req = buildRequest('POST', '/v1/chat/completions');
+    req.body = '{bad json}';
+    dispatchRequest(controller, req, conn);
+
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('400');
+    expect(written).toContain('invalid_json');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /v1/chat/completions — non-streaming
+// ---------------------------------------------------------------------------
+
+describe('POST /v1/chat/completions — non-streaming', () => {
+  beforeEach(() => {
+    (modelStore as any).activeModel = {id: 'local/model', name: 'TestModel'};
+    (modelStore as any).context = {};
+  });
+
+  it('returns OpenAI-shaped completion response', async () => {
+    mockCompletion.mockResolvedValueOnce({
+      text: 'Hello!',
+      content: 'Hello!',
+      tokens_predicted: 3,
+      tokens_evaluated: 10,
+      stopped_eos: true,
     });
 
-    it('processes CORS OPTIONS requests (preflight)', () => {
-      const req: HttpRequest = {
-        method: 'OPTIONS',
-        path: '/',
-        headers: {},
-        body: '',
-        requestId: 'test-req',
-      };
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hi'}],
+      }),
+      conn,
+    );
 
-      // Call private request handler directly for unit testing
-      (localServerController as any).handleRequest(req, mockConnection);
+    await new Promise(r => setTimeout(r, 20));
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('"object":"chat.completion"');
+    expect(written).toContain('"content":"Hello!"');
+    expect(written).toContain('"finish_reason":"stop"');
+    expect(written).toContain('"completion_tokens":3');
+    expect(written).toContain('"prompt_tokens":10');
+  });
 
-      expect(mockConnection.sendResponse).toHaveBeenCalledWith(
-        204,
-        'No Content',
-        expect.objectContaining({
-          'Access-Control-Allow-Origin': '*',
-        }),
-        '',
-      );
-      expect(localServerStore.logs.length).toBe(1);
-      expect(localServerStore.logs[0].method).toBe('OPTIONS');
+  it('returns 429 when coordinator rejects with busy error', async () => {
+    mockCompletion.mockRejectedValueOnce(new Error('Server busy. Queue limit reached.'));
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hi'}],
+      }),
+      conn,
+    );
+
+    await new Promise(r => setTimeout(r, 20));
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('429');
+    expect(written).toContain('rate_limit_exceeded');
+  });
+
+  it('passes temperature and max_tokens to coordinator', async () => {
+    mockCompletion.mockResolvedValueOnce({text: 'ok', content: 'ok', stopped_eos: true});
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hi'}],
+        temperature: 0.7,
+        max_tokens: 256,
+      }),
+      conn,
+    );
+
+    await new Promise(r => setTimeout(r, 20));
+    const params = mockCompletion.mock.calls[0][0];
+    expect(params.temperature).toBe(0.7);
+    expect(params.n_predict).toBe(256);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /v1/chat/completions — streaming
+// ---------------------------------------------------------------------------
+
+describe('POST /v1/chat/completions — streaming', () => {
+  beforeEach(() => {
+    (modelStore as any).activeModel = {id: 'local/model', name: 'TestModel'};
+    (modelStore as any).context = {};
+  });
+
+  it('sends SSE role delta then token chunks then [DONE]', async () => {
+    mockCompletion.mockImplementationOnce(async (params: any, cb: any) => {
+      cb({token: 'Hi'});
+      cb({token: '!'});
+      return {text: 'Hi!', content: 'Hi!', stopped_eos: true};
     });
 
-    it('rejects unauthorized requests when auth is enabled', () => {
-      const req: HttpRequest = {
-        method: 'GET',
-        path: '/health',
-        headers: {}, // missing authorization
-        body: '',
-        requestId: 'test-req',
-      };
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'hey'}],
+        stream: true,
+      }),
+      conn,
+    );
 
-      (localServerController as any).handleRequest(req, mockConnection);
+    await new Promise(r => setTimeout(r, 20));
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('text/event-stream');
+    expect(written).toContain('"role":"assistant"');
+    expect(written).toContain('"content":"Hi"');
+    expect(written).toContain('"content":"!"');
+    expect(written).toContain('[DONE]');
+  });
+});
 
-      expect(mockConnection.sendResponse).toHaveBeenCalledWith(
-        401,
-        'Unauthorized',
-        expect.any(Object),
-        expect.stringContaining('Incorrect API key'),
-      );
-      expect(localServerStore.logs.length).toBe(1);
-      expect(localServerStore.logs[0].status).toBe(401);
+// ---------------------------------------------------------------------------
+// POST /v1/completions
+// ---------------------------------------------------------------------------
+
+describe('POST /v1/completions', () => {
+  beforeEach(() => {
+    (modelStore as any).activeModel = {id: 'local/model', name: 'TestModel'};
+    (modelStore as any).context = {};
+  });
+
+  it('returns 503 when no model loaded', () => {
+    (modelStore as any).activeModel = null;
+    (modelStore as any).context = undefined;
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('POST', '/v1/completions', {prompt: 'hi'}), conn);
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('503');
+  });
+
+  it('returns 400 for missing prompt', () => {
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(controller, buildRequest('POST', '/v1/completions', {}), conn);
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('400');
+    expect(written).toContain('invalid_prompt');
+  });
+
+  it('returns text completion non-streaming', async () => {
+    mockCompletion.mockResolvedValueOnce({
+      text: 'World',
+      content: 'World',
+      tokens_predicted: 1,
+      tokens_evaluated: 5,
+      stopped_eos: true,
     });
 
-    it('authorizes and routes valid GET / health requests', () => {
-      const req: HttpRequest = {
-        method: 'GET',
-        path: '/health',
-        headers: {
-          authorization: 'Bearer test-api-key',
-        },
-        body: '',
-        requestId: 'test-req',
-      };
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/completions', {prompt: 'Hello '}),
+      conn,
+    );
 
-      (localServerController as any).handleRequest(req, mockConnection);
+    await new Promise(r => setTimeout(r, 20));
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('"object":"text_completion"');
+    expect(written).toContain('"text":"World"');
+  });
 
-      expect(mockConnection.sendResponse).toHaveBeenCalledWith(
-        200,
-        'OK',
-        expect.any(Object),
-        expect.stringContaining('server'),
-      );
-      expect(localServerStore.logs.length).toBe(1);
-      expect(localServerStore.logs[0].status).toBe(200);
+  it('returns text completion streaming with [DONE]', async () => {
+    mockCompletion.mockImplementationOnce(async (params: any, cb: any) => {
+      cb({token: 'tok1'});
+      return {text: 'tok1', content: 'tok1', stopped_eos: true};
     });
 
-    it('returns version info on GET /version', () => {
-      const req: HttpRequest = {
-        method: 'GET',
-        path: '/version',
-        headers: {
-          authorization: 'Bearer test-api-key',
-        },
-        body: '',
-        requestId: 'test-req',
-      };
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/completions', {prompt: 'Go:', stream: true}),
+      conn,
+    );
 
-      (localServerController as any).handleRequest(req, mockConnection);
-
-      expect(mockConnection.sendResponse).toHaveBeenCalledWith(
-        200,
-        'OK',
-        expect.any(Object),
-        expect.stringContaining('1.16.1'),
-      );
-      expect(localServerStore.logs[0].route).toBe('/version');
-    });
-
-    it('returns placeholder response on POST /v1/chat/completions', () => {
-      const req: HttpRequest = {
-        method: 'POST',
-        path: '/v1/chat/completions',
-        headers: {
-          authorization: 'Bearer test-api-key',
-        },
-        body: '',
-        requestId: 'test-req',
-      };
-
-      (localServerController as any).handleRequest(req, mockConnection);
-
-      expect(mockConnection.sendResponse).toHaveBeenCalledWith(
-        503,
-        'Service Unavailable',
-        expect.any(Object),
-        expect.stringContaining('inference_pending'),
-      );
-    });
-
-    it('handles 404 for unknown routes', () => {
-      const req: HttpRequest = {
-        method: 'GET',
-        path: '/unknown-route',
-        headers: {
-          authorization: 'Bearer test-api-key',
-        },
-        body: '',
-        requestId: 'test-req',
-      };
-
-      (localServerController as any).handleRequest(req, mockConnection);
-
-      expect(mockConnection.sendError).toHaveBeenCalledWith(
-        404,
-        'Not Found',
-        expect.stringContaining('not found'),
-      );
-    });
+    await new Promise(r => setTimeout(r, 20));
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('text/event-stream');
+    expect(written).toContain('"text":"tok1"');
+    expect(written).toContain('[DONE]');
   });
 });

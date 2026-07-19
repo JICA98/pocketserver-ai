@@ -337,22 +337,22 @@ Define a common interface used by Chat and Server.
 
 Inputs should cover:
 
-- [ ] Messages or prompt.
-- [ ] Model identifier.
-- [ ] Generation parameters.
-- [ ] Stop sequences.
-- [ ] Streaming callback.
-- [ ] Abort/cancellation signal.
-- [ ] Request source: Chat or Server.
-- [ ] Optional tool configuration only when supported.
+- [x] Messages or prompt.
+- [x] Model identifier.
+- [x] Generation parameters.
+- [x] Stop sequences.
+- [x] Streaming callback.
+- [x] Abort/cancellation signal.
+- [x] Request source: Chat or Server.
+- [x] Optional tool configuration only when supported.
 
 Outputs:
 
-- [ ] Text.
-- [ ] Finish reason.
-- [ ] Token usage where available.
-- [ ] Timing data.
-- [ ] Error category.
+- [x] Text.
+- [x] Finish reason.
+- [x] Token usage where available.
+- [x] Timing data.
+- [x] Error category.
 
 Acceptance:
 
@@ -360,13 +360,13 @@ Acceptance:
 
 ## Task 4.2 — Implement concurrency control
 
-- [ ] Use one active generation by default.
-- [ ] Add a bounded queue or explicit `429` rejection.
-- [ ] Track active and queued requests.
-- [ ] Ensure fairness.
-- [ ] Support cancellation while queued.
-- [ ] Release locks in `finally`.
-- [ ] Coordinate model unload/reload.
+- [x] Use one active generation by default.
+- [x] Add a bounded queue or explicit `429` rejection.
+- [x] Track active and queued requests.
+- [x] Ensure fairness.
+- [x] Support cancellation while queued.
+- [x] Release locks in `finally`.
+- [x] Coordinate model unload/reload.
 
 Acceptance:
 
@@ -377,12 +377,12 @@ Acceptance:
 
 Cancellation sources:
 
-- [ ] HTTP client disconnect.
-- [ ] Request timeout.
-- [ ] App Stop Server action.
-- [ ] Model unload/reload.
-- [ ] Chat cancellation.
-- [ ] App lifecycle shutdown.
+- [x] HTTP client disconnect.
+- [x] Request timeout.
+- [x] App Stop Server action.
+- [x] Model unload/reload.
+- [x] Chat cancellation.
+- [x] App lifecycle shutdown.
 
 Acceptance:
 
@@ -391,12 +391,12 @@ Acceptance:
 
 ## Task 4.4 — Usage accounting
 
-- [ ] Capture prompt token count where supported.
-- [ ] Capture completion token count.
-- [ ] Capture total tokens.
-- [ ] Fall back to `null`/omitted values rather than fabricated numbers.
-- [ ] Track generation duration.
-- [ ] Update aggregate stats.
+- [x] Capture prompt token count where supported.
+- [x] Capture completion token count.
+- [x] Capture total tokens.
+- [x] Fall back to `null`/omitted values rather than fabricated numbers.
+- [x] Track generation duration.
+- [x] Update aggregate stats.
 
 Acceptance:
 
@@ -410,11 +410,11 @@ Acceptance:
 
 Return the loaded/local model in an OpenAI-style list.
 
-- [ ] Include stable model ID.
-- [ ] Include object type.
-- [ ] Include created timestamp when meaningful.
-- [ ] Include owner string.
-- [ ] Clearly represent no loaded model.
+- [x] Include stable model ID.
+- [x] Include object type.
+- [x] Include created timestamp when meaningful.
+- [x] Include owner string.
+- [x] Clearly represent no loaded model.
 
 Acceptance:
 
@@ -424,15 +424,15 @@ Acceptance:
 
 Validate:
 
-- [ ] `messages` is present and non-empty.
-- [ ] Roles are supported.
-- [ ] Content shapes are supported.
-- [ ] Numeric parameters are bounded.
-- [ ] `max_tokens` respects model/context limits.
-- [ ] Stop values are normalized.
-- [ ] Unsupported multimodal content gets a clear error.
-- [ ] Unsupported tools/response formats get a clear error or safe fallback.
-- [ ] Unknown fields do not crash parsing.
+- [x] `messages` is present and non-empty.
+- [x] Roles are supported.
+- [x] Content shapes are supported.
+- [x] Numeric parameters are bounded.
+- [x] `max_tokens` respects model/context limits.
+- [x] Stop values are normalized.
+- [x] Unsupported multimodal content gets a clear error.
+- [x] Unsupported tools/response formats get a clear error or safe fallback.
+- [x] Unknown fields do not crash parsing.
 
 Acceptance:
 
@@ -440,12 +440,12 @@ Acceptance:
 
 ## Task 5.3 — Implement non-streaming chat completions
 
-- [ ] Convert OpenAI messages into the model's required chat-template input.
-- [ ] Reuse the same formatter used by Chat.
-- [ ] Run through InferenceCoordinator.
-- [ ] Return OpenAI-shaped response.
-- [ ] Map finish reasons.
-- [ ] Include real usage when available.
+- [x] Convert OpenAI messages into the model's required chat-template input.
+- [x] Reuse the same formatter used by Chat.
+- [x] Run through InferenceCoordinator.
+- [x] Return OpenAI-shaped response.
+- [x] Map finish reasons.
+- [x] Include real usage when available.
 
 Acceptance:
 
@@ -453,16 +453,16 @@ Acceptance:
 
 ## Task 5.4 — Implement streaming chat completions
 
-- [ ] Use SSE.
-- [ ] Send headers before generation.
-- [ ] Emit role delta if appropriate.
-- [ ] Emit content deltas.
-- [ ] Emit final finish reason.
-- [ ] Emit `[DONE]`.
-- [ ] Flush chunks promptly.
-- [ ] Handle UTF-8 boundaries safely.
-- [ ] Handle client disconnect.
-- [ ] Avoid buffering the whole response.
+- [x] Use SSE.
+- [x] Send headers before generation.
+- [x] Emit role delta if appropriate.
+- [x] Emit content deltas.
+- [x] Emit final finish reason.
+- [x] Emit `[DONE]`.
+- [x] Flush chunks promptly.
+- [x] Handle UTF-8 boundaries safely.
+- [x] Handle client disconnect.
+- [x] Avoid buffering the whole response.
 
 Acceptance:
 
@@ -471,11 +471,11 @@ Acceptance:
 
 ## Task 5.5 — Implement `/v1/completions`
 
-- [ ] Accept string prompt.
-- [ ] Support streaming and non-streaming.
-- [ ] Reuse inference coordinator.
-- [ ] Return OpenAI-compatible text completion shape.
-- [ ] Reject unsupported prompt arrays clearly if not implemented.
+- [x] Accept string prompt.
+- [x] Support streaming and non-streaming.
+- [x] Reuse inference coordinator.
+- [x] Return OpenAI-compatible text completion shape.
+- [x] Reject unsupported prompt arrays clearly if not implemented.
 
 Acceptance:
 
@@ -485,12 +485,12 @@ Acceptance:
 
 Inspect the existing PocketPal AgentRunner/Talents flow.
 
-- [ ] Decide whether server requests may invoke Talents.
-- [ ] Keep tools disabled by default unless safely supported.
-- [ ] Do not silently claim full OpenAI tool-call compatibility.
-- [ ] Map supported tool calls correctly if implemented.
-- [ ] Validate JSON response format only if the inference stack can enforce it.
-- [ ] Document limitations.
+- [x] Decide whether server requests may invoke Talents.
+- [x] Keep tools disabled by default unless safely supported.
+- [x] Do not silently claim full OpenAI tool-call compatibility.
+- [x] Map supported tool calls correctly if implemented.
+- [x] Validate JSON response format only if the inference stack can enforce it.
+- [x] Document limitations.
 
 Acceptance:
 
