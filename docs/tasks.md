@@ -180,27 +180,27 @@ Add a MobX store following repository conventions.
 
 State:
 
-- [ ] Status.
-- [ ] Config.
-- [ ] Runtime URLs.
-- [ ] Model readiness.
-- [ ] Active request count.
-- [ ] Queue count.
-- [ ] Stats.
-- [ ] Sanitized logs.
-- [ ] Last error.
-- [ ] Capability flags.
+- [x] Status.
+- [x] Config.
+- [x] Runtime URLs.
+- [x] Model readiness.
+- [x] Active request count.
+- [x] Queue count.
+- [x] Stats.
+- [x] Sanitized logs.
+- [x] Last error.
+- [x] Capability flags.
 
 Actions:
 
-- [ ] Start.
-- [ ] Stop.
-- [ ] Restart.
-- [ ] Update config.
-- [ ] Regenerate API key.
-- [ ] Clear logs.
-- [ ] Refresh network addresses.
-- [ ] Set manual public URL.
+- [x] Start.
+- [x] Stop.
+- [x] Restart.
+- [x] Update config.
+- [x] Regenerate API key.
+- [x] Clear logs.
+- [x] Refresh network addresses.
+- [x] Set manual public URL.
 
 Acceptance:
 
@@ -209,12 +209,12 @@ Acceptance:
 
 ## Task 2.3 — Persist preferences securely
 
-- [ ] Persist non-secret settings using the project's settings persistence.
-- [ ] Store the API key in Keychain/secure storage.
-- [ ] Generate a cryptographically strong key.
-- [ ] Do not store transient Running state.
-- [ ] Reset runtime state truthfully after process restart.
-- [ ] Add migration/default handling for existing installs.
+- [x] Persist non-secret settings using the project's settings persistence.
+- [x] Store the API key in Keychain/secure storage.
+- [x] Generate a cryptographically strong key.
+- [x] Do not store transient Running state.
+- [x] Reset runtime state truthfully after process restart.
+- [x] Add migration/default handling for existing installs.
 
 Acceptance:
 
@@ -225,13 +225,13 @@ Acceptance:
 
 Validate:
 
-- [ ] Port is an integer in `1024..65535`, unless privileged ports are intentionally supported.
-- [ ] Port is not already in use.
-- [ ] Allowed origins are valid.
-- [ ] Queue limit is bounded.
-- [ ] Timeout is bounded.
-- [ ] Manual URL is valid HTTP/HTTPS.
-- [ ] API key is non-empty when auth is enabled.
+- [x] Port is an integer in `1024..65535`, unless privileged ports are intentionally supported.
+- [x] Port is not already in use.
+- [x] Allowed origins are valid.
+- [x] Queue limit is bounded.
+- [x] Timeout is bounded.
+- [x] Manual URL is valid HTTP/HTTPS.
+- [x] API key is non-empty when auth is enabled.
 
 Acceptance:
 
