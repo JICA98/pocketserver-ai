@@ -1,4 +1,9 @@
-export type LocalServerStatus = 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+export type LocalServerStatus =
+  | 'stopped'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'error';
 
 export type LocalServerBindMode = 'localhost' | 'lan';
 
