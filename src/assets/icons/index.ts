@@ -52,6 +52,7 @@ export {default as RefreshIcon} from './refresh.svg';
 export {default as ReverseLeftIcon} from './reverse-left.svg';
 export {default as SearchIcon} from './search.svg';
 export {default as SendIcon} from './send.svg';
+export {default as ServerIcon} from './cpu-chip.svg';
 export {default as SettingsIcon} from './settings.svg';
 export {default as SpeakerIcon} from './speaker.svg';
 export {default as ShoppingCartIcon} from './shopping-cart.svg';

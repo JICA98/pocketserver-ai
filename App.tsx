@@ -41,6 +41,7 @@ import {
   SettingsScreen,
   BenchmarkScreen,
   AboutScreen,
+  ServerScreen,
 
   // Dev tools screen. Only available in debug mode.
   DevToolsScreen,
@@ -112,6 +113,7 @@ const App = observer(() => {
                     <SwitchPoint
                       drawer={
                         <Drawer.Navigator
+                          initialRouteName={ROUTES.SERVER}
                           screenOptions={{
                             headerLeft: () => <HeaderLeft />,
                             drawerStyle: {
@@ -127,6 +129,14 @@ const App = observer(() => {
                           drawerContent={props => (
                             <SidebarContent {...props} />
                           )}>
+                          <Drawer.Screen
+                            name={ROUTES.SERVER}
+                            component={gestureHandlerRootHOC(ServerScreen)}
+                            options={{
+                              headerStyle: styles.headerWithoutDivider,
+                              title: currentL10n.screenTitles.server,
+                            }}
+                          />
                           <Drawer.Screen
                             name={ROUTES.CHAT}
                             component={gestureHandlerRootHOC(ChatScreen)}

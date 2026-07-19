@@ -565,6 +565,7 @@ export interface Model {
 }
 
 export type RootDrawerParamList = {
+  Server: undefined;
   Chat: undefined;
   Models: undefined;
   Settings: undefined;

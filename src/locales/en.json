@@ -947,6 +947,7 @@
     },
     "sidebarContent": {
       "menuItems": {
+        "server": "Server",
         "chat": "Chat",
         "models": "Models",
         "pals": "Pals",
@@ -987,12 +988,7 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {
@@ -1148,6 +1144,7 @@
     }
   },
   "screenTitles": {
+    "server": "Server",
     "chat": "Chat",
     "models": "Models",
     "pals": "Pals (experimental)",

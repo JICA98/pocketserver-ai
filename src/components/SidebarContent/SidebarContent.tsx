@@ -16,6 +16,7 @@ import {
   EditIcon,
   ModelIcon,
   PalIcon,
+  ServerIcon,
   SettingsIcon,
   ShareIcon,
   TrashIcon,
@@ -485,14 +486,24 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
     );
 
     // List header with main menu items
-    const ListHeaderComponent = React.useMemo(
-      () => (
+    const ListHeaderComponent = React.useMemo(() => {
+      const currentRouteName = props.state.routes[props.state.index].name;
+      return (
         <View>
           <Drawer.Section showDivider={false}>
+            <Drawer.Item
+              label={l10n.components.sidebarContent.menuItems.server}
+              icon={() => <ServerIcon stroke={theme.colors.primary} />}
+              onPress={() => props.navigation.navigate(ROUTES.SERVER)}
+              active={currentRouteName === ROUTES.SERVER}
+              style={styles.menuDrawerItem}
+              testID="drawer-item-server"
+            />
             <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.chat}
               icon={() => <ChatIcon stroke={theme.colors.primary} />}
               onPress={() => props.navigation.navigate(ROUTES.CHAT)}
+              active={currentRouteName === ROUTES.CHAT}
               style={styles.menuDrawerItem}
               testID="drawer-item-chat"
             />
@@ -500,6 +511,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               label={l10n.components.sidebarContent.menuItems.pals}
               icon={() => <PalIcon stroke={theme.colors.primary} />}
               onPress={() => props.navigation.navigate(ROUTES.PALS)}
+              active={currentRouteName === ROUTES.PALS}
               style={styles.menuDrawerItem}
               testID="drawer-item-pals"
             />
@@ -507,6 +519,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               label={l10n.components.sidebarContent.menuItems.models}
               icon={() => <ModelIcon stroke={theme.colors.primary} />}
               onPress={() => props.navigation.navigate(ROUTES.MODELS)}
+              active={currentRouteName === ROUTES.MODELS}
               style={styles.menuDrawerItem}
               testID="drawer-item-models"
             />
@@ -514,6 +527,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               label={l10n.components.sidebarContent.menuItems.benchmark}
               icon={() => <BenchmarkIcon stroke={theme.colors.primary} />}
               onPress={() => props.navigation.navigate(ROUTES.BENCHMARK)}
+              active={currentRouteName === ROUTES.BENCHMARK}
               style={styles.menuDrawerItem}
               testID="drawer-item-benchmark"
             />
@@ -527,6 +541,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
                 />
               )}
               onPress={() => props.navigation.navigate(ROUTES.SETTINGS)}
+              active={currentRouteName === ROUTES.SETTINGS}
               style={styles.menuDrawerItem}
               testID="drawer-item-settings"
             />
@@ -540,6 +555,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
                 />
               )}
               onPress={() => props.navigation.navigate(ROUTES.APP_INFO)}
+              active={currentRouteName === ROUTES.APP_INFO}
               style={styles.menuDrawerItem}
             />
             {/* Only show Dev Tools in debug mode */}
@@ -554,15 +570,15 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
                   />
                 )}
                 onPress={() => props.navigation.navigate(ROUTES.DEV_TOOLS)}
+                active={currentRouteName === ROUTES.DEV_TOOLS}
                 style={styles.menuDrawerItem}
               />
             )}
           </Drawer.Section>
           <Divider style={styles.divider} />
         </View>
-      ),
-      [l10n, theme, styles, props.navigation],
-    );
+      );
+    }, [l10n, theme, styles, props.navigation, props.state]);
 
     return (
       <GestureHandlerRootView style={styles.sidebarContainer}>
