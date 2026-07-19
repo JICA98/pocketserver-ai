@@ -504,17 +504,17 @@ Acceptance:
 
 Connect the screen to ServerStore.
 
-- [ ] Status.
-- [ ] Model state.
-- [ ] Start/Stop/Restart.
-- [ ] Port.
-- [ ] Bind mode.
-- [ ] URLs.
-- [ ] Auth.
-- [ ] Stats.
-- [ ] Logs.
-- [ ] Errors.
-- [ ] Capability limitations.
+- [x] Status.
+- [x] Model state.
+- [x] Start/Stop/Restart.
+- [x] Port.
+- [x] Bind mode.
+- [x] URLs.
+- [x] Auth.
+- [x] Stats.
+- [x] Logs.
+- [x] Errors.
+- [x] Capability limitations.
 
 Acceptance:
 
@@ -522,14 +522,14 @@ Acceptance:
 
 ## Task 6.2 — Add URL and credential actions
 
-- [ ] Copy local URL.
-- [ ] Copy LAN URL.
-- [ ] Copy public URL.
-- [ ] Copy API key.
-- [ ] Share URL.
-- [ ] Regenerate API key with confirmation.
-- [ ] Mask/unmask API key.
-- [ ] Show brief success feedback.
+- [x] Copy local URL.
+- [x] Copy LAN URL.
+- [x] Copy public URL.
+- [x] Copy API key.
+- [x] Share URL.
+- [x] Regenerate API key with confirmation.
+- [x] Mask/unmask API key.
+- [x] Show brief success feedback.
 
 Acceptance:
 
@@ -539,12 +539,12 @@ Acceptance:
 
 Generate examples from current config:
 
-- [ ] Health curl.
-- [ ] Chat completion curl.
-- [ ] Streaming curl.
-- [ ] OpenAI Python client example.
-- [ ] JavaScript OpenAI client example.
-- [ ] LM Studio/Open WebUI/custom base URL guidance if compatible.
+- [x] Health curl.
+- [x] Chat completion curl.
+- [x] Streaming curl.
+- [x] OpenAI Python client example.
+- [x] JavaScript OpenAI client example.
+- [x] LM Studio/Open WebUI/custom base URL guidance if compatible.
 
 Acceptance:
 
@@ -553,13 +553,13 @@ Acceptance:
 
 ## Task 6.4 — Add activity/log panel
 
-- [ ] Show recent request entries.
-- [ ] Show active request count.
-- [ ] Show queue count.
-- [ ] Show request duration/status.
-- [ ] Clear logs.
-- [ ] Cap in-memory history.
-- [ ] Redact secrets and content.
+- [x] Show recent request entries.
+- [x] Show active request count.
+- [x] Show queue count.
+- [x] Show request duration/status.
+- [x] Clear logs.
+- [x] Cap in-memory history.
+- [x] Redact secrets and content.
 
 Acceptance:
 

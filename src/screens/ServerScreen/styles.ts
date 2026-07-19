@@ -140,4 +140,21 @@ export const createStyles = (theme: Theme, insets: EdgeInsets) =>
       fontFamily: 'monospace',
       color: theme.colors.onSurface,
     },
+    statChip: {
+      backgroundColor: theme.colors.surfaceContainerHigh,
+      borderRadius: theme.borders.default,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      minWidth: 64,
+    },
+    statValue: {
+      ...theme.fonts.titleMedium,
+      color: theme.colors.onSurface,
+      fontWeight: 'bold',
+    },
+    statLabel: {
+      ...theme.fonts.bodySmall,
+      color: theme.colors.onSurfaceVariant,
+    },
   });
