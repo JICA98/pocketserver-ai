@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import {makeAutoObservable, runInAction} from 'mobx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {makePersistable} from 'mobx-persist-store';
@@ -118,10 +119,11 @@ export class LocalServerStore {
   }
 
   private generateRandomKey(): string {
-    const randomBytes = Array.from({length: 16}, () =>
-      Math.floor(Math.random() * 16).toString(16),
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const hex = Array.from(bytes, (b) =>
+      b.toString(16).padStart(2, '0'),
     ).join('');
-    return `sk-pocketpal-${randomBytes}`;
+    return `sk-pocketpal-${hex}`;
   }
 
   // Actions
