@@ -573,10 +573,10 @@ Acceptance:
 
 Test:
 
-- [ ] Android app-local client if available.
-- [ ] `adb shell`/device-local curl equivalent.
-- [ ] `adb reverse` development flow.
-- [ ] Auth on/off behavior.
+- [x] Android app-local client if available.
+- [x] `adb shell`/device-local curl equivalent.
+- [x] `adb reverse` development flow.
+- [x] Auth on/off behavior.
 
 Acceptance:
 
@@ -586,14 +586,14 @@ Acceptance:
 
 Test from another device:
 
-- [ ] Health.
-- [ ] Models.
-- [ ] Non-streaming completion.
-- [ ] Streaming completion.
-- [ ] Unauthorized request.
-- [ ] Wrong API key.
-- [ ] Phone IP changes.
-- [ ] Hotspot mode.
+- [x] Health.
+- [x] Models.
+- [x] Non-streaming completion.
+- [x] Streaming completion.
+- [x] Unauthorized request.
+- [x] Wrong API key.
+- [x] Phone IP changes.
+- [x] Hotspot mode.
 
 Acceptance:
 
@@ -601,13 +601,13 @@ Acceptance:
 
 ## Task 7.3 — Add manual external tunnel mode
 
-- [ ] Add a tunnel mode selector.
-- [ ] Add manual public URL entry.
-- [ ] Validate HTTPS/HTTP URL.
-- [ ] Display local target port.
-- [ ] Explain that API auth must remain enabled.
-- [ ] Add provider-neutral instructions.
-- [ ] Do not imply the app itself created the tunnel.
+- [x] Add a tunnel mode selector.
+- [x] Add manual public URL entry.
+- [x] Validate HTTPS/HTTP URL.
+- [x] Display local target port.
+- [x] Explain that API auth must remain enabled.
+- [x] Add provider-neutral instructions.
+- [x] Do not imply the app itself created the tunnel.
 
 Acceptance:
 
@@ -617,10 +617,10 @@ Acceptance:
 
 Add concise setup guidance for at least:
 
-- [ ] Cloudflare Quick Tunnel.
-- [ ] Tailscale Funnel or Tailscale access.
-- [ ] SSH reverse tunnel.
-- [ ] One additional provider/tool.
+- [x] Cloudflare Quick Tunnel.
+- [x] Tailscale Funnel or Tailscale access.
+- [x] SSH reverse tunnel.
+- [x] One additional provider/tool.
 
 For each, state:
 
@@ -638,15 +638,15 @@ Acceptance:
 
 Only perform after the manual mode is stable.
 
-- [ ] Confirm Android ARM64 binary/library option.
-- [ ] Review license.
-- [ ] Review binary update/security strategy.
-- [ ] Measure APK size impact.
-- [ ] Capture stdout/stderr safely.
-- [ ] Parse generated public URL.
-- [ ] Stop process reliably.
-- [ ] Handle process death.
-- [ ] Do not ship if reliability/security is poor.
+- [x] Confirm Android ARM64 binary/library option.
+- [x] Review license.
+- [x] Review binary update/security strategy.
+- [x] Measure APK size impact.
+- [x] Capture stdout/stderr safely.
+- [x] Parse generated public URL.
+- [x] Stop process reliably.
+- [x] Handle process death.
+- [x] Do not ship if reliability/security is poor.
 
 Acceptance:
 
