@@ -1,8 +1,9 @@
 import 'react-native-get-random-values';
-import {makeAutoObservable, runInAction} from 'mobx';
+import {makeAutoObservable, reaction, runInAction} from 'mobx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {makePersistable} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
+import {NativeEventEmitter, Platform} from 'react-native';
 import {
   LocalServerStatus,
   LocalServerConfig,
@@ -12,6 +13,7 @@ import {
   LocalServerCapabilities,
 } from '../utils/localServerTypes';
 import {modelStore} from './ModelStore';
+import NativeServerForegroundService from '../specs/NativeServerForegroundService';
 
 // We will import localServerController from services/server/LocalServerController
 // Using a lazy require or direct import. Let's use direct import. We will create the file in Phase 3.
@@ -68,7 +70,41 @@ export class LocalServerStore {
     }).then(() => {
       this.loadApiKey();
       this.refreshNetworkAddresses();
+      this.setupServiceIntegration();
     });
+  }
+
+  private setupServiceIntegration() {
+    if (Platform.OS !== 'android' || !NativeServerForegroundService) {
+      return;
+    }
+
+    const emitter = new NativeEventEmitter(NativeServerForegroundService);
+    emitter.addListener('ServerForegroundService', (event: any) => {
+      if (event.eventType === 'stopRequested') {
+        this.stop();
+      }
+    });
+
+    let lastUpdate = 0;
+    const throttledUpdate = () => {
+      const now = Date.now();
+      if (now - lastUpdate < 1000 || this.status !== 'running') {
+        return;
+      }
+      lastUpdate = now;
+      NativeServerForegroundService?.updateNotification(
+        this.config.bindMode,
+        this.config.port,
+        this.activeRequests,
+      );
+    };
+
+    reaction(
+      () => [this.activeRequests, this.config.bindMode, this.config.port] as const,
+      () => throttledUpdate(),
+      {fireImmediately: false},
+    );
   }
 
   // Computed properties

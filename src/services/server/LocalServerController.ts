@@ -1,5 +1,6 @@
 import TcpSockets from 'react-native-tcp-socket';
 import DeviceInfo from 'react-native-device-info';
+import {Platform} from 'react-native';
 import {runInAction} from 'mobx';
 
 import {localServerStore} from '../../store/LocalServerStore';
@@ -7,6 +8,7 @@ import {modelStore} from '../../store';
 import {inferenceCoordinator} from '../inference/InferenceCoordinator';
 import {HttpRequest, HttpConnection} from './HttpServerAdapter';
 import {CompletionStreamData, CompletionResult} from '../../utils/completionTypes';
+import NativeServerForegroundService from '../../specs/NativeServerForegroundService';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -128,6 +130,12 @@ export class LocalServerController {
           0,
         );
         this.discoverNetworkIp();
+        if (Platform.OS === 'android') {
+          NativeServerForegroundService?.startForegroundService(
+            localServerStore.config.bindMode,
+            localServerStore.config.port,
+          );
+        }
       });
 
       this.server.on('error', (err: any) => {
@@ -174,6 +182,10 @@ export class LocalServerController {
     runInAction(() => {
       localServerStore.status = 'stopping';
     });
+
+    if (Platform.OS === 'android') {
+      NativeServerForegroundService?.stopForegroundService();
+    }
 
     return new Promise<void>(resolve => {
       if (this.server) {
