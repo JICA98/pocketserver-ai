@@ -15,6 +15,9 @@ export interface LocalServerConfig {
   authEnabled: boolean;
   queueLimit: number;
   requestTimeoutMs: number;
+  idleTimeoutMs: number;
+  rateLimitMax: number;
+  rateLimitWindowMs: number;
   manualPublicUrl: string;
   tunnelMode: TunnelMode;
   corsAllowedOrigins: string[];

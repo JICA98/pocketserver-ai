@@ -87,6 +87,24 @@ function sendApiError(
 export class LocalServerController {
   private server: any = null;
   private connections: Set<HttpConnection> = new Set();
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private rateLimitMap = new Map<
+    string,
+    {count: number; resetAt: number}
+  >();
+
+  private resetIdleTimer() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+    }
+    const idleMs = (localServerStore.config as any).idleTimeoutMs;
+    if (idleMs > 0) {
+      this.idleTimer = setTimeout(() => {
+        localServerStore.addLogEntry('SYSTEM', '', 0, 0, 'Server stopped due to inactivity.');
+        this.stop();
+      }, idleMs);
+    }
+  }
 
   async start(): Promise<void> {
     if (
@@ -213,6 +231,10 @@ export class LocalServerController {
   }
 
   private cleanup() {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
     this.server = null;
     for (const conn of this.connections) {
       try {
@@ -243,6 +265,29 @@ export class LocalServerController {
 
   private handleRequest(req: HttpRequest, conn: HttpConnection) {
     const startTime = Date.now();
+
+    // Reset idle timeout on every request
+    this.resetIdleTimer();
+
+    // Rate limiting
+    const ip = req.ip ?? 'unknown';
+    const rateMax = localServerStore.config.rateLimitMax;
+    const rateWindow = localServerStore.config.rateLimitWindowMs;
+    const now = Date.now();
+    const entry = this.rateLimitMap.get(ip);
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= rateMax) {
+        conn.sendError(429, 'Too Many Requests', 'Rate limit exceeded.');
+        localServerStore.addLogEntry(
+          req.method, req.path, 429,
+          Date.now() - startTime, `Rate limit exceeded for ${ip}`,
+        );
+        return;
+      }
+      entry.count++;
+    } else {
+      this.rateLimitMap.set(ip, {count: 1, resetAt: now + rateWindow});
+    }
 
     // 1. CORS Headers Middleware
     const corsHeaders: Record<string, string> = {
@@ -455,6 +500,18 @@ export class LocalServerController {
       return;
     }
 
+    // Prompt context limit
+    const MAX_PROMPT_CHARS = 65536;
+    const promptChars = messages.reduce(
+      (sum: number, m: any) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0,
+    );
+    if (promptChars > MAX_PROMPT_CHARS) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders,
+        'Prompt exceeds maximum context length.', 'invalid_request_error', 'context_length_exceeded');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Prompt too large.');
+      return;
+    }
+
     // Validate numeric params
     if (temperature !== undefined && (typeof temperature !== 'number' || temperature < 0 || temperature > 2)) {
       sendApiError(conn, 400, 'Bad Request', corsHeaders, 'temperature must be a number between 0 and 2.', 'invalid_request_error', 'invalid_temperature');
@@ -489,8 +546,11 @@ export class LocalServerController {
     if (top_p !== undefined) {
       completionParams.top_p = top_p;
     }
+    const MAX_OUTPUT_TOKENS = 16384;
     if (max_tokens !== undefined && typeof max_tokens === 'number') {
-      completionParams.n_predict = max_tokens;
+      completionParams.n_predict = Math.min(max_tokens, MAX_OUTPUT_TOKENS);
+    } else {
+      completionParams.n_predict = MAX_OUTPUT_TOKENS;
     }
     if (stop !== undefined) {
       completionParams.stop = Array.isArray(stop) ? stop : [stop];
@@ -530,8 +590,13 @@ export class LocalServerController {
     // Abort on socket close
     conn.socket.once('close', () => abortController.abort());
 
-    inferenceCoordinator
-      .completion(completionParams)
+    const timeoutMs = localServerStore.config.requestTimeoutMs;
+    const completionPromise = inferenceCoordinator.completion(completionParams);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out.')), timeoutMs),
+    );
+
+    Promise.race([completionPromise, timeoutPromise])
       .then((result: CompletionResult) => {
         const duration = Date.now() - startTime;
         const finishReason = mapFinishReason(result);
@@ -614,8 +679,15 @@ export class LocalServerController {
     // Abort on client disconnect
     conn.socket.once('close', () => abortController.abort());
 
+    let timedOut = false;
+    const timeoutMs = localServerStore.config.requestTimeoutMs;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+    }, timeoutMs);
+
     const streamCallback = (data: CompletionStreamData) => {
-      if (conn.isClosed) {
+      if (timedOut || conn.isClosed) {
         return;
       }
       const token = data.token ?? data.content ?? '';
@@ -635,7 +707,8 @@ export class LocalServerController {
     inferenceCoordinator
       .completion(completionParams, streamCallback)
       .then((result: CompletionResult) => {
-        if (conn.isClosed) {
+        clearTimeout(timer);
+        if (timedOut || conn.isClosed) {
           return;
         }
         const finishReason = mapFinishReason(result);
@@ -653,7 +726,8 @@ export class LocalServerController {
         localServerStore.addLogEntry('POST', req.path, 200, Date.now() - startTime);
       })
       .catch((err: Error) => {
-        if (conn.isClosed) {
+        clearTimeout(timer);
+        if (timedOut || conn.isClosed) {
           return;
         }
         const errChunk = {

@@ -93,6 +93,13 @@ export class HttpConnection {
 
       const lenHeader = this.headers['content-length'];
       this.contentLength = lenHeader ? parseInt(lenHeader, 10) : 0;
+
+      const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
+      if (this.contentLength > MAX_BODY_SIZE) {
+        this.sendError(413, 'Payload Too Large',
+          'Request body exceeds maximum size of 10 MB.');
+        return;
+      }
     }
 
     if (this.headersParsed) {
