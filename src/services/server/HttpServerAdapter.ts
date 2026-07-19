@@ -137,9 +137,10 @@ export class HttpConnection {
       }
       this.socket.write('\r\n');
       if (body) {
-        this.socket.write(body);
+        this.socket.write(body, () => this.socket.end());
+      } else {
+        this.socket.end();
       }
-      this.socket.end();
     } catch (e) {
       if (__DEV__) {
         console.error('Failed to send HTTP response:', e);
