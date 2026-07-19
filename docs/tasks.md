@@ -661,12 +661,12 @@ Acceptance:
 
 Before implementing a foreground service, test:
 
-- [ ] Screen off.
-- [ ] App backgrounded.
-- [ ] Activity recreated.
-- [ ] Process remains alive.
-- [ ] Network remains reachable.
-- [ ] Streaming remains active.
+- [x] Screen off.
+- [x] App backgrounded.
+- [x] Activity recreated.
+- [x] Process remains alive.
+- [x] Network remains reachable.
+- [x] Streaming remains active.
 
 Acceptance:
 
@@ -674,15 +674,15 @@ Acceptance:
 
 ## Task 8.2 — Implement foreground service where required
 
-- [ ] Create notification channel.
-- [ ] Persistent notification with server state.
-- [ ] Stop action.
-- [ ] Correct Android manifest entries.
-- [ ] Correct foreground service type where required.
-- [ ] Start/stop native service from controller.
-- [ ] Keep state synchronized after Activity recreation.
-- [ ] Handle Android permission requirements.
-- [ ] Avoid boot auto-start by default.
+- [x] Create notification channel.
+- [x] Persistent notification with server state.
+- [x] Stop action.
+- [x] Correct Android manifest entries.
+- [x] Correct foreground service type where required.
+- [x] Start/stop native service from controller.
+- [x] Keep state synchronized after Activity recreation.
+- [x] Handle Android permission requirements.
+- [x] Avoid boot auto-start by default.
 
 Acceptance:
 
@@ -690,11 +690,11 @@ Acceptance:
 
 ## Task 8.3 — Power/network locks
 
-- [ ] Determine whether partial wake lock is required.
-- [ ] Determine whether Wi-Fi lock is required.
-- [ ] Acquire only while needed.
-- [ ] Release on stop/error/process cleanup.
-- [ ] Explain battery impact in UI.
+- [x] Determine whether partial wake lock is required.
+- [x] Determine whether Wi-Fi lock is required.
+- [x] Acquire only while needed.
+- [x] Release on stop/error/process cleanup.
+- [x] Explain battery impact in UI.
 
 Acceptance:
 
@@ -702,12 +702,12 @@ Acceptance:
 
 ## Task 8.4 — Notification controls
 
-- [ ] Show bind mode and port.
-- [ ] Show active request indicator where practical.
-- [ ] Add Stop.
-- [ ] Add Open App.
-- [ ] Never display API key.
-- [ ] Handle stale notification after crash.
+- [x] Show bind mode and port.
+- [x] Show active request indicator where practical.
+- [x] Add Stop.
+- [x] Add Open App.
+- [x] Never display API key.
+- [x] Handle stale notification after crash.
 
 Acceptance:
 
@@ -721,17 +721,17 @@ Acceptance:
 
 Document risks:
 
-- [ ] Unauthorized LAN user.
-- [ ] Public tunnel scanning.
-- [ ] Prompt/data exposure.
-- [ ] Denial of service.
-- [ ] Oversized request.
-- [ ] Endless generation.
-- [ ] Queue flooding.
-- [ ] CORS/browser abuse.
-- [ ] Secret leakage.
-- [ ] Unsafe admin endpoints.
-- [ ] Model reload races.
+- [x] Unauthorized LAN user.
+- [x] Public tunnel scanning.
+- [x] Prompt/data exposure.
+- [x] Denial of service.
+- [x] Oversized request.
+- [x] Endless generation.
+- [x] Queue flooding.
+- [x] CORS/browser abuse.
+- [x] Secret leakage.
+- [x] Unsafe admin endpoints.
+- [x] Model reload races.
 
 Acceptance:
 
@@ -739,15 +739,15 @@ Acceptance:
 
 ## Task 9.2 — Enforce resource limits
 
-- [ ] Request body limit.
-- [ ] Prompt/context limit.
-- [ ] Output token limit.
-- [ ] Queue limit.
-- [ ] Concurrent generation limit.
-- [ ] Request timeout.
-- [ ] Idle timeout.
-- [ ] Log retention limit.
-- [ ] Rate limit.
+- [x] Request body limit.
+- [x] Prompt/context limit.
+- [x] Output token limit.
+- [x] Queue limit.
+- [x] Concurrent generation limit.
+- [x] Request timeout.
+- [x] Idle timeout.
+- [x] Log retention limit.
+- [x] Rate limit.
 
 Acceptance:
 
@@ -755,14 +755,14 @@ Acceptance:
 
 ## Task 9.3 — Harden authentication
 
-- [ ] Secure random API key.
-- [ ] Bearer parser.
-- [ ] Constant-time comparison where feasible.
-- [ ] Secure persistence.
-- [ ] Regeneration.
-- [ ] Redaction.
-- [ ] Auth required by default outside localhost.
-- [ ] Tests for malformed/missing headers.
+- [x] Secure random API key.
+- [x] Bearer parser.
+- [x] Constant-time comparison where feasible.
+- [x] Secure persistence.
+- [x] Regeneration.
+- [x] Redaction.
+- [x] Auth required by default outside localhost.
+- [x] Tests for malformed/missing headers.
 
 Acceptance:
 
@@ -770,11 +770,11 @@ Acceptance:
 
 ## Task 9.4 — Release logging policy
 
-- [ ] Disable verbose body logging in release.
-- [ ] Remove stack traces from HTTP responses.
-- [ ] Redact IPs if privacy mode enabled.
-- [ ] Never log tokens/keys.
-- [ ] Verify native library logs.
+- [x] Disable verbose body logging in release.
+- [x] Remove stack traces from HTTP responses.
+- [x] Redact IPs if privacy mode enabled.
+- [x] Never log tokens/keys.
+- [x] Verify native library logs.
 
 Acceptance:
 
