@@ -38,6 +38,7 @@ import {
   talentRegistry,
 } from '../services/talents';
 import type {ToolDefinition} from '../services/talents/types';
+import {inferenceCoordinator} from '../services/inference/InferenceCoordinator';
 import {
   agentStateReducer,
   createTriggerMarkerCache,
@@ -505,8 +506,8 @@ export const useChatSession = (
   };
 
   const handleSendPress = async (message: MessageType.PartialText) => {
-    const engine = modelStore.engine;
-    if (!engine) {
+    const engine = inferenceCoordinator;
+    if (!modelStore.engine) {
       await addSystemMessage(l10n.chat.modelNotLoaded);
       return;
     }
