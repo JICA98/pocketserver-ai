@@ -12,7 +12,6 @@ import {
 import {Text, Button, Divider, Switch} from 'react-native-paper';
 import {observer} from 'mobx-react-lite';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
 
 import {
   PlayIcon,
@@ -26,7 +25,9 @@ import {
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 import {localServerStore} from '../../store/LocalServerStore';
+import {modelStore} from '../../store';
 import {LocalServerStatus} from '../../utils/localServerTypes';
+import {ChatPalModelPickerSheet} from '../../components';
 
 // ---------------------------------------------------------------------------
 // Status colour helper
@@ -56,9 +57,9 @@ export const ServerScreen: React.FC = observer(() => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme, insets);
-  const navigation = useNavigation<any>();
 
   const [showApiKey, setShowApiKey] = useState(false);
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [advancedCollapsed, setAdvancedCollapsed] = useState(true);
   const [examplesCollapsed, setExamplesCollapsed] = useState(false);
   const [portText, setPortText] = useState(String(localServerStore.config.port));
@@ -232,10 +233,68 @@ console.log(resp.choices[0].message.content);`;
           </View>
         </View>
 
+        {/* ── Host Bind Mode ── */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Host Bind Mode</Text>
+          <Text style={styles.caption}>
+            Localhost: only reachable from this device.{'\n'}
+            Local Network: reachable from other devices on the same Wi-Fi.
+          </Text>
+          <View style={{flexDirection: 'row', gap: 8, marginTop: 8}}>
+            <Button
+              mode={
+                store.config.bindMode === 'localhost' ? 'contained' : 'outlined'
+              }
+              onPress={() => store.updateConfig({bindMode: 'localhost'})}
+              style={{flex: 1}}
+              disabled={isRunning}>
+              Localhost
+            </Button>
+            <Button
+              mode={store.config.bindMode === 'lan' ? 'contained' : 'outlined'}
+              onPress={() => store.updateConfig({bindMode: 'lan'})}
+              style={{flex: 1}}
+              disabled={isRunning}>
+              LAN
+            </Button>
+          </View>
+
+          {/* Port (visible here so a stuck port can be changed easily) */}
+          <View style={{marginTop: 12}}>
+            <Text style={styles.subtitle}>Server Port</Text>
+            <TextInput
+              value={portText}
+              onChangeText={setPortText}
+              onBlur={handlePortBlur}
+              keyboardType="numeric"
+              style={styles.textInput}
+              editable={!isRunning}
+            />
+            {store.validationErrors.port ? (
+              <Text style={{color: '#F44336', fontSize: 12, marginTop: 4}}>
+                {store.validationErrors.port}
+              </Text>
+            ) : null}
+            <Text style={[styles.caption, {marginTop: 4}]}>
+              If “port already in use” appears, change to another port (e.g.
+              8081) — the app will also auto-bump the port on Start.
+            </Text>
+          </View>
+        </View>
+
         {/* ── Active Model ── */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Active Model</Text>
-          {store.isModelReady && store.loadedModelName ? (
+          {modelStore.isContextLoading && modelStore.loadingModel ? (
+            <View style={{padding: 8}}>
+              <Text style={[styles.subtitle, {color: '#FFC107'}]}>
+                Loading {modelStore.loadingModel.name}...
+              </Text>
+              <Text style={styles.caption}>
+                Please wait while the model initializes
+              </Text>
+            </View>
+          ) : store.isModelReady && store.loadedModelName ? (
             <View>
               <Text style={styles.subtitle}>{store.loadedModelName}</Text>
               <Text style={styles.caption}>Ready for local inference</Text>
@@ -258,7 +317,7 @@ console.log(resp.choices[0].message.content);`;
                 buttonColor="#F44336"
                 textColor="#FFF"
                 style={{marginTop: 8}}
-                onPress={() => navigation.navigate('Models')}>
+                onPress={() => setIsPickerVisible(true)}>
                 Select Model
               </Button>
             </View>
@@ -300,7 +359,37 @@ console.log(resp.choices[0].message.content);`;
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : null}
+            ) : store.config.bindMode === 'lan' ? (
+              <View
+                style={{
+                  backgroundColor: '#FFC10722',
+                  padding: 8,
+                  borderRadius: 8,
+                  marginTop: 4,
+                }}>
+                <Text style={{color: '#B8860B', fontSize: 12}}>
+                  LAN mode is on, but the Wi-Fi IP could not be discovered.
+                  Make sure Wi-Fi is connected and Android Settings → Apps →
+                  PocketServer AI → Permissions has Wi-Fi / Local Network
+                  access enabled. Then restart the server.
+                </Text>
+              </View>
+            ) : (
+              <View
+                style={{
+                  backgroundColor: '#2196F322',
+                  padding: 8,
+                  borderRadius: 8,
+                  marginTop: 4,
+                }}>
+                <Text style={{color: '#1565C0', fontSize: 12}}>
+                  Server is in Localhost mode — only reachable from this
+                  device. Stop the server and switch to LAN in Host Bind Mode
+                  below to also expose it on Wi-Fi (e.g.
+                  http://192.168.x.x:8080).
+                </Text>
+              </View>
+            )}
 
             {/* Public / tunnel */}
             {publicUrl ? (
@@ -478,57 +567,6 @@ console.log(resp.choices[0].message.content);`;
             <View style={{gap: theme.spacing.default}}>
               <Divider />
 
-              {/* Bind Mode */}
-              <View>
-                <Text style={styles.subtitle}>Host Bind Mode</Text>
-                <Text style={styles.caption}>
-                  Localhost: only reachable from this device.{'\n'}
-                  Local Network: reachable from other devices on the same Wi-Fi.
-                </Text>
-                <View style={{flexDirection: 'row', gap: 8, marginTop: 8}}>
-                  <Button
-                    mode={
-                      store.config.bindMode === 'localhost'
-                        ? 'contained'
-                        : 'outlined'
-                    }
-                    onPress={() =>
-                      store.updateConfig({bindMode: 'localhost'})
-                    }
-                    style={{flex: 1}}
-                    disabled={isRunning}>
-                    Localhost
-                  </Button>
-                  <Button
-                    mode={
-                      store.config.bindMode === 'lan' ? 'contained' : 'outlined'
-                    }
-                    onPress={() => store.updateConfig({bindMode: 'lan'})}
-                    style={{flex: 1}}
-                    disabled={isRunning}>
-                    LAN
-                  </Button>
-                </View>
-              </View>
-
-              {/* Port */}
-              <View>
-                <Text style={styles.subtitle}>Server Port</Text>
-                <TextInput
-                  value={portText}
-                  onChangeText={setPortText}
-                  onBlur={handlePortBlur}
-                  keyboardType="numeric"
-                  style={styles.textInput}
-                  editable={!isRunning}
-                />
-                {store.validationErrors.port ? (
-                  <Text style={{color: '#F44336', fontSize: 12, marginTop: 4}}>
-                    {store.validationErrors.port}
-                  </Text>
-                ) : null}
-              </View>
-
               {/* Capabilities */}
               <View
                 style={{
@@ -692,6 +730,14 @@ console.log(resp.choices[0].message.content);`;
         </View>
 
       </ScrollView>
+
+      {isPickerVisible && (
+        <ChatPalModelPickerSheet
+          isVisible={isPickerVisible}
+          onClose={() => setIsPickerVisible(false)}
+          chatInputHeight={0}
+        />
+      )}
     </SafeAreaView>
   );
 });
