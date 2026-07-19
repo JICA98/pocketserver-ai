@@ -128,7 +128,14 @@ export class LocalServerStore {
         service: 'pocketpal-local-server-apikey',
       });
       if (credentials) {
-        runInAction(() => {
+        if (this.config.bindMode === 'lan' && !this.config.authEnabled) {
+      console.warn(
+        '[Security] Server running on LAN without authentication. ' +
+        'Any device on your local network can access it.',
+      );
+    }
+
+    runInAction(() => {
           this.apiKey = credentials.password;
         });
       } else {

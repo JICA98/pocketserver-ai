@@ -22,6 +22,19 @@ function nowSecs(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+const BEARER_RE = /^Bearer ([a-zA-Z0-9_-]+)$/;
+
 function mapFinishReason(result: CompletionResult): string {
   if (result.stopped_eos) {
     return 'stop';
@@ -263,6 +276,14 @@ export class LocalServerController {
     }
   }
 
+  private validateBearerToken(auth: string): boolean {
+    const match = auth.match(BEARER_RE);
+    if (!match) {
+      return false;
+    }
+    return constantTimeEqual(match[1], localServerStore.apiKey);
+  }
+
   private handleRequest(req: HttpRequest, conn: HttpConnection) {
     const startTime = Date.now();
 
@@ -310,11 +331,7 @@ export class LocalServerController {
     // 2. Authentication Middleware
     if (localServerStore.config.authEnabled) {
       const auth = req.headers.authorization;
-      if (
-        !auth ||
-        !auth.startsWith('Bearer ') ||
-        auth.substring(7) !== localServerStore.apiKey
-      ) {
+      if (!auth || !this.validateBearerToken(auth)) {
         const duration = Date.now() - startTime;
         sendApiError(
           conn,
