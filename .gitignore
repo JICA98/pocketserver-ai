@@ -79,6 +79,9 @@ ios/GoogleService-Info.plist
 .env.*
 !.env.example
 
+# Agent skills
+.agents/
+
 # environment config
 ios/Config/Env.xcconfig
 
