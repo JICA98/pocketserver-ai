@@ -12,6 +12,7 @@ import {
 import {Text, Button, Divider, Switch} from 'react-native-paper';
 import {observer} from 'mobx-react-lite';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
 
 import {
   PlayIcon,
@@ -55,6 +56,7 @@ export const ServerScreen: React.FC = observer(() => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(theme, insets);
+  const navigation = useNavigation<any>();
 
   const [showApiKey, setShowApiKey] = useState(false);
   const [advancedCollapsed, setAdvancedCollapsed] = useState(true);
@@ -249,8 +251,16 @@ console.log(resp.choices[0].message.content);`;
                 No Model Loaded
               </Text>
               <Text style={styles.caption}>
-                Load a GGUF model in the Models screen before starting the server.
+                Load a GGUF model before starting the server.
               </Text>
+              <Button
+                mode="contained"
+                buttonColor="#F44336"
+                textColor="#FFF"
+                style={{marginTop: 8}}
+                onPress={() => navigation.navigate('Models')}>
+                Select Model
+              </Button>
             </View>
           )}
         </View>
