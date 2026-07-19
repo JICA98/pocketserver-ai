@@ -245,14 +245,14 @@ Acceptance:
 
 Implement an idempotent controller:
 
-- [ ] `start(config)`.
-- [ ] `stop()`.
-- [ ] `restart(config)`.
-- [ ] `isRunning()`.
-- [ ] Cleanup in all failure paths.
-- [ ] Runtime event subscription.
-- [ ] State synchronization with ServerStore.
-- [ ] Port-in-use error handling.
+- [x] `start(config)`.
+- [x] `stop()`.
+- [x] `restart(config)`.
+- [x] `isRunning()`.
+- [x] Cleanup in all failure paths.
+- [x] Runtime event subscription.
+- [x] State synchronization with ServerStore.
+- [x] Port-in-use error handling.
 
 Acceptance:
 
@@ -286,10 +286,10 @@ Return at least:
 
 Return app/server/API version information.
 
-- [ ] Add JSON content type.
-- [ ] Add request IDs.
-- [ ] Add consistent error handling.
-- [ ] Add route-not-found handling.
+- [x] Add JSON content type.
+- [x] Add request IDs.
+- [x] Add consistent error handling.
+- [x] Add route-not-found handling.
 
 Acceptance:
 
@@ -298,16 +298,16 @@ Acceptance:
 
 ## Task 3.3 — Add middleware/protection
 
-- [ ] Request ID.
-- [ ] JSON parser with body-size limit.
-- [ ] Bearer authentication.
-- [ ] CORS.
-- [ ] `OPTIONS` handling.
-- [ ] Request timeout.
-- [ ] Safe error boundary.
-- [ ] Access logging with redaction.
-- [ ] Basic rate limiting.
-- [ ] Connection cleanup.
+- [x] Request ID.
+- [x] JSON parser with body-size limit.
+- [x] Bearer authentication.
+- [x] CORS.
+- [x] `OPTIONS` handling.
+- [x] Request timeout.
+- [x] Safe error boundary.
+- [x] Access logging with redaction.
+- [x] Basic rate limiting.
+- [x] Connection cleanup.
 
 Acceptance:
 
@@ -316,12 +316,12 @@ Acceptance:
 
 ## Task 3.4 — Network address discovery
 
-- [ ] Enumerate suitable LAN IPv4 addresses.
-- [ ] Avoid loopback and unusable interfaces for displayed LAN URL.
-- [ ] Handle Wi-Fi/hotspot changes.
-- [ ] Handle no-network state.
-- [ ] Avoid presenting `0.0.0.0` as a client destination.
-- [ ] Consider IPv6 and bracket formatting.
+- [x] Enumerate suitable LAN IPv4 addresses.
+- [x] Avoid loopback and unusable interfaces for displayed LAN URL.
+- [x] Handle Wi-Fi/hotspot changes.
+- [x] Handle no-network state.
+- [x] Avoid presenting `0.0.0.0` as a client destination.
+- [x] Consider IPv6 and bracket formatting.
 
 Acceptance:
 
