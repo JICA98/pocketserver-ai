@@ -292,14 +292,8 @@ export class LocalServerController {
       return;
     }
     try {
-      const ip = await DeviceInfo.getIpAddress();
-      if (
-        ip &&
-        ip !== '0.0.0.0' &&
-        ip !== '127.0.0.1' &&
-        ip !== 'unknown' &&
-        /^\d+\./.test(ip)
-      ) {
+      const ip = await this.resolveLanIp();
+      if (ip) {
         runInAction(() => {
           localServerStore.runtimeInfo.lanUrl =
             `http://${ip}:${localServerStore.config.port}`;
@@ -309,6 +303,47 @@ export class LocalServerController {
       if (__DEV__) {
         console.warn('Could not discover network IP address:', e);
       }
+    }
+  }
+
+  private resolveLanIp(): Promise<string | null> {
+    return new Promise(resolve => {
+      // Try DeviceInfo first (works on older Android, iOS)
+      DeviceInfo.getIpAddress()
+        .then(ip => {
+          if (ip && ip !== '0.0.0.0' && ip !== '127.0.0.1' && ip !== 'unknown' && /^\d+\./.test(ip)) {
+            resolve(ip);
+            return;
+          }
+          this.resolveLanIpViaSocket(resolve);
+        })
+        .catch(() => this.resolveLanIpViaSocket(resolve));
+    });
+  }
+
+  private resolveLanIpViaSocket(resolve: (ip: string | null) => void) {
+    // Create socket and resolve local address via a dummy connect to a public DNS IP.
+    // The socket never actually connects (it's a UDP-style trick on TCP), but it
+    // discovers the network interface that would route to the internet.
+    try {
+      const socket = TcpSockets.createConnection({port: 80, host: '1.1.1.1'}, () => {
+        const addr = (socket as any).address?.();
+        const ip = addr?.address;
+        socket.destroy();
+        resolve(ip && ip !== '127.0.0.1' && /^\d+\./.test(ip) ? ip : null);
+      });
+      socket.setTimeout(2000, () => {
+        const addr = (socket as any).address?.();
+        socket.destroy();
+        resolve(addr?.address ?? null);
+      });
+      socket.on('error', () => {
+        const addr = (socket as any).address?.();
+        socket.destroy();
+        resolve(addr?.address ?? null);
+      });
+    } catch (_e) {
+      resolve(null);
     }
   }
 
