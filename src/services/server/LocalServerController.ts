@@ -22,6 +22,25 @@ function nowSecs(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+// React Native has no Node `Buffer` global; compute UTF-8 byte length manually.
+function utf8ByteLength(str: string): number {
+  let len = 0;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c < 0x80) {
+      len += 1;
+    } else if (c < 0x800) {
+      len += 2;
+    } else if (c >= 0xd800 && c <= 0xdbff) {
+      len += 4;
+      i++;
+    } else {
+      len += 3;
+    }
+  }
+  return len;
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;
@@ -95,7 +114,7 @@ function sendJson(
     {
       ...corsHeaders,
       'Content-Type': 'application/json',
-      'Content-Length': String(Buffer.byteLength(body, 'utf8')),
+      'Content-Length': String(utf8ByteLength(body)),
     },
     body,
   );
@@ -170,7 +189,7 @@ export class LocalServerController {
           : '0.0.0.0';
       const port = localServerStore.config.port;
 
-      this.server.listen({port, host});
+      this.server.listen({port, host, reuseAddress: true});
 
       this.server.on('listening', () => {
         runInAction(() => {
