@@ -455,7 +455,7 @@
     "screenTitle": "درباره برنامه",
     "description": "برنامه‌ای که مدل‌های زبانی را مستقیماً به گوشی شما می‌آورد. بر پایه llama.cpp و llama.rn ساخته شده.",
     "supportProject": "حمایت از پروژه",
-    "supportProjectDescription": "اگر از استفاده PocketPal AI لذت می‌برید، لطفاً حمایت از پروژه را در نظر بگیرید:",
+    "supportProjectDescription": "اگر از استفاده PocketServer AI لذت می‌برید، لطفاً حمایت از پروژه را در نظر بگیرید:",
     "githubButton": "ستاره در GitHub",
     "orText": "یا",
     "orBy": "یا با",
@@ -465,15 +465,15 @@
     "privacyPolicy": "سیاست حریم خصوصی",
     "termsOfService": "شرایط استفاده از خدمات",
     "tour": "تور معرفی",
-    "tourDescription": "صفحه‌های خوش‌آمدگویی را دوباره ببینید تا با امکانات PocketPal AI آشنا شوید.",
+    "tourDescription": "صفحه‌های خوش‌آمدگویی را دوباره ببینید تا با امکانات PocketServer AI آشنا شوید.",
     "showIntroButton": "نمایش دوباره معرفی"
   },
   "feedback": {
     "title": "ارسال بازخورد",
-    "description": "نظر شما مهم است! به ما بگویید PocketPal AI چطور به شما کمک می‌کند و چه کاری می‌توانیم انجام دهیم تا مفیدتر شود.",
+    "description": "نظر شما مهم است! به ما بگویید PocketServer AI چطور به شما کمک می‌کند و چه کاری می‌توانیم انجام دهیم تا مفیدتر شود.",
     "shareThoughtsButton": "نظرات خود را به اشتراک بگذارید",
     "useCase": {
-      "label": "PocketPal AI را برای چه کاری استفاده می‌کنید؟",
+      "label": "PocketServer AI را برای چه کاری استفاده می‌کنید؟",
       "placeholder": "مثلاً خلاصه‌سازی، ایفای نقش و غیره"
     },
     "featureRequests": {
@@ -485,7 +485,7 @@
       "placeholder": "هر نظر دیگری دارید با ما به اشتراک بگذارید."
     },
     "usageFrequency": {
-      "label": "چقدر از PocketPal AI استفاده می‌کنید؟ (اختیاری)",
+      "label": "چقدر از PocketServer AI استفاده می‌کنید؟ (اختیاری)",
       "options": {
         "daily": "روزانه",
         "weekly": "هفتگی",
@@ -535,7 +535,7 @@
     },
     "chatEmptyPlaceholder": {
       "noModelsTitle": "مدلی موجود نیست",
-      "noModelsDescription": "یک مدل دانلود کنید تا گفتگو با PocketPal را شروع کنید",
+      "noModelsDescription": "یک مدل دانلود کنید تا گفتگو با PocketServer را شروع کنید",
       "noModelsButton": "دانلود مدل",
       "activateModelTitle": "برای شروع یک مدل را فعال کنید",
       "activateModelDescription": "مدل را انتخاب و دانلود کنید. بعد از دانلود، روی بارگذاری کنار مدل بزنید و گفتگو را شروع کنید.",
@@ -587,7 +587,7 @@
     },
     "modelErrorReportSheet": {
       "title": "گزارش مشکل بارگذاری مدل",
-      "privacyNote": "با اشتراک‌گذاری جزئیات این خطا به بهبود PocketPal کمک کنید. موارد زیر را بررسی کنید — می‌توانید هر موردی که نمی‌خواهید ارسال شود را غیرفعال کنید.",
+      "privacyNote": "با اشتراک‌گذاری جزئیات این خطا به بهبود PocketServer کمک کنید. موارد زیر را بررسی کنید — می‌توانید هر موردی که نمی‌خواهید ارسال شود را غیرفعال کنید.",
       "errorMessage": "پیام خطا",
       "modelInfo": "اطلاعات مدل",
       "modelName": "نام",
@@ -605,7 +605,7 @@
       "submit": "ارسال گزارش",
       "success": {
         "title": "گزارش ارسال شد",
-        "message": "ممنون که به بهبود PocketPal کمک می‌کنید. گزارش شما به رفع این مشکل کمک خواهد کرد."
+        "message": "ممنون که به بهبود PocketServer کمک می‌کنید. گزارش شما به رفع این مشکل کمک خواهد کرد."
       },
       "error": {
         "title": "ارسال گزارش ناموفق بود",
@@ -1064,7 +1064,7 @@
   },
   "camera": {
     "permissionTitle": "دسترسی به دوربین لازم است",
-    "permissionMessage": "PocketPal برای تحلیل تصاویر به دسترسی دوربین نیاز دارد",
+    "permissionMessage": "PocketServer برای تحلیل تصاویر به دسترسی دوربین نیاز دارد",
     "requestingPermission": "درخواست دسترسی به دوربین...",
     "noDevice": "دوربینی یافت نشد",
     "errorTitle": "خطای دوربین",
@@ -1078,7 +1078,7 @@
   },
   "video": {
     "permissionTitle": "دسترسی به دوربین لازم است",
-    "permissionMessage": "PocketPal برای تحلیل ویدیو به دسترسی دوربین نیاز دارد",
+    "permissionMessage": "PocketServer برای تحلیل ویدیو به دسترسی دوربین نیاز دارد",
     "requestingPermission": "درخواست دسترسی به دوربین...",
     "noDevice": "دوربینی یافت نشد",
     "errorTitle": "خطای دوربین",
@@ -1412,14 +1412,14 @@
     "skip": "رد کردن",
     "skipForNow": "فعلاً رد کن",
     "splash": {
-      "brand": "PocketPal"
+      "brand": "PocketServer"
     },
     "screen1": {
       "title": "با پَل‌هایت آشنا شو.",
       "titleAccent": "پَل‌هایت.",
       "body": "دوستان کوچک و باهوشی که داخل گوشی تو زندگی می‌کنند.\nبیا با هم آماده‌ات کنیم - فقط یک دقیقه طول می‌کشد.",
       "cta": "بگرد و نشانم بده",
-      "eyebrow": "به PocketPal خوش آمدی"
+      "eyebrow": "به PocketServer خوش آمدی"
     },
     "screen2": {
       "title": "هر زمان،\nهر جا.",

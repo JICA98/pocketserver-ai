@@ -457,7 +457,7 @@
     "screenTitle": "Sobre o App",
     "description": "Um app que traz modelos de linguagem diretamente para o seu celular. Construído sobre o llama.cpp e o llama.rn.",
     "supportProject": "Apoie o Projeto",
-    "supportProjectDescription": "Se você gosta de usar o PocketPal AI, considere apoiar o projeto:",
+    "supportProjectDescription": "Se você gosta de usar o PocketServer AI, considere apoiar o projeto:",
     "githubButton": "Dar uma estrela no GitHub",
     "orText": "ou",
     "orBy": "ou",
@@ -465,17 +465,17 @@
     "versionCopiedTitle": "Versão copiada",
     "versionCopiedDescription": "As informações de versão foram copiadas para a área de transferência",
     "tour": "Tour",
-    "tourDescription": "Reveja as telas de boas-vindas para ver o que o PocketPal AI oferece.",
+    "tourDescription": "Reveja as telas de boas-vindas para ver o que o PocketServer AI oferece.",
     "showIntroButton": "Mostrar introdução novamente",
     "privacyPolicy": "Política de Privacidade",
     "termsOfService": "Termos de Serviço"
   },
   "feedback": {
     "title": "Enviar Feedback",
-    "description": "Sua opinião importa! Conte-nos como o PocketPal AI está te ajudando e o que podemos fazer para torná-lo ainda mais útil.",
+    "description": "Sua opinião importa! Conte-nos como o PocketServer AI está te ajudando e o que podemos fazer para torná-lo ainda mais útil.",
     "shareThoughtsButton": "Compartilhando suas ideias",
     "useCase": {
-      "label": "Para que você usa o PocketPal AI?",
+      "label": "Para que você usa o PocketServer AI?",
       "placeholder": "ex.: resumo, interpretação de personagem, etc."
     },
     "featureRequests": {
@@ -487,7 +487,7 @@
       "placeholder": "Compartilhe quaisquer outras ideias que você tenha."
     },
     "usageFrequency": {
-      "label": "Com que frequência você usa o PocketPal AI? (Opcional)",
+      "label": "Com que frequência você usa o PocketServer AI? (Opcional)",
       "options": {
         "daily": "Diariamente",
         "weekly": "Semanalmente",
@@ -555,7 +555,7 @@
     },
     "chatEmptyPlaceholder": {
       "noModelsTitle": "Nenhum Modelo Disponível",
-      "noModelsDescription": "Baixe um modelo para começar a conversar com o PocketPal",
+      "noModelsDescription": "Baixe um modelo para começar a conversar com o PocketServer",
       "noModelsButton": "Baixar Modelo",
       "activateModelTitle": "Ative um Modelo para Começar",
       "activateModelDescription": "Selecione o modelo e baixe-o. Após o download, toque em Carregar ao lado do modelo e comece a conversar.",
@@ -608,7 +608,7 @@
     },
     "modelErrorReportSheet": {
       "title": "Denunciar Problema ao Carregar Modelo",
-      "privacyNote": "Ajude-nos a melhorar o PocketPal compartilhando detalhes sobre este erro. Revise abaixo o que será compartilhado - você pode desmarcar qualquer item que preferir não incluir.",
+      "privacyNote": "Ajude-nos a melhorar o PocketServer compartilhando detalhes sobre este erro. Revise abaixo o que será compartilhado - você pode desmarcar qualquer item que preferir não incluir.",
       "errorMessage": "Mensagem de erro",
       "modelInfo": "Informações do Modelo",
       "modelName": "Nome",
@@ -626,7 +626,7 @@
       "submit": "Enviar Denúncia",
       "success": {
         "title": "Denúncia Enviada",
-        "message": "Obrigado por nos ajudar a melhorar o PocketPal. Sua denúncia nos ajudará a corrigir este problema."
+        "message": "Obrigado por nos ajudar a melhorar o PocketServer. Sua denúncia nos ajudará a corrigir este problema."
       },
       "error": {
         "title": "Falha na Denúncia",
@@ -1080,7 +1080,7 @@
   },
   "camera": {
     "permissionTitle": "Permissão de Câmera Necessária",
-    "permissionMessage": "O PocketPal precisa de acesso à câmera para analisar imagens",
+    "permissionMessage": "O PocketServer precisa de acesso à câmera para analisar imagens",
     "requestingPermission": "Solicitando permissão de câmera...",
     "noDevice": "Nenhum dispositivo de câmera encontrado",
     "errorTitle": "Erro de Câmera",
@@ -1094,7 +1094,7 @@
   },
   "video": {
     "permissionTitle": "Permissão de Câmera Necessária",
-    "permissionMessage": "O PocketPal precisa de acesso à câmera para análise de vídeo",
+    "permissionMessage": "O PocketServer precisa de acesso à câmera para análise de vídeo",
     "requestingPermission": "Solicitando permissão de câmera...",
     "noDevice": "Nenhum dispositivo de câmera encontrado",
     "errorTitle": "Erro de Câmera",
@@ -1428,14 +1428,14 @@
     "skip": "Pular",
     "skipForNow": "Pular por agora",
     "splash": {
-      "brand": "PocketPal"
+      "brand": "PocketServer"
     },
     "screen1": {
       "title": "Conheça seus pals.",
       "titleAccent": "pals.",
       "body": "Pequenos amigos inteligentes que vivem dentro do seu celular.\nVamos te ajudar a configurar - vai levar só um minuto.",
       "cta": "Me Mostre Como Funciona",
-      "eyebrow": "Bem-vindo ao PocketPal"
+      "eyebrow": "Bem-vindo ao PocketServer"
     },
     "screen2": {
       "title": "A Qualquer Hora,\nEm Qualquer Lugar.",

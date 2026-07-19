@@ -112,7 +112,7 @@
     "importError": "Failed to import chat sessions. Please check the file format.",
     "internetSearch": {
       "title": "Internet Search",
-      "description": "Let Pals search the web with their own tools. Bring your own API key — PocketPal never holds your keys or routes your queries.",
+      "description": "Let Pals search the web with their own tools. Bring your own API key — PocketServer never holds your keys or routes your queries.",
       "providerLabel": "Search provider",
       "providerGated": "Coming soon",
       "keyLabel": "API key",
@@ -128,7 +128,7 @@
       "resultCountLabel": "Results per search",
       "resultCountDescription": "Fewer results keep more room in the model's context.",
       "consentTitle": "Searches leave your device",
-      "consentDescription": "When a Pal searches the web, your query is sent to the selected provider over the internet. When a Pal reads a page, the URL and page content may instead be sent to a default reader service (r.jina.ai) if the selected provider has no native reader. Keys and queries are never sent to PocketPal.",
+      "consentDescription": "When a Pal searches the web, your query is sent to the selected provider over the internet. When a Pal reads a page, the URL and page content may instead be sent to a default reader service (r.jina.ai) if the selected provider has no native reader. Keys and queries are never sent to PocketServer.",
       "consentAccept": "I understand",
       "consentRequired": "Accept the disclosure above to set a key and enable search.",
       "consentGivenTitle": "Searching the web is enabled",
@@ -482,7 +482,7 @@
     "screenTitle": "App Info",
     "description": "An app that brings language models directly to your phone. Sits on the shoulders of llama.cpp and llama.rn.",
     "supportProject": "Support the Project",
-    "supportProjectDescription": "If you enjoy using PocketPal AI, please consider supporting the project by:",
+    "supportProjectDescription": "If you enjoy using PocketServer AI, please consider supporting the project by:",
     "githubButton": "Star on GitHub",
     "orText": "or",
     "orBy": "or by",
@@ -490,17 +490,17 @@
     "versionCopiedTitle": "Version copied",
     "versionCopiedDescription": "Version information has been copied to clipboard",
     "tour": "Tour",
-    "tourDescription": "Replay the welcome screens to see what PocketPal AI offers.",
+    "tourDescription": "Replay the welcome screens to see what PocketServer AI offers.",
     "showIntroButton": "Show intro again",
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Terms of Service"
   },
   "feedback": {
     "title": "Send Feedback",
-    "description": "Your voice matters! Tell us how PocketPal AI is helping you and what we can do to make it even more useful.",
+    "description": "Your voice matters! Tell us how PocketServer AI is helping you and what we can do to make it even more useful.",
     "shareThoughtsButton": "Sharing your thoughts",
     "useCase": {
-      "label": "What are you using PocketPal AI for?",
+      "label": "What are you using PocketServer AI for?",
       "placeholder": "e.g., summarization, roleplay, etc."
     },
     "featureRequests": {
@@ -512,7 +512,7 @@
       "placeholder": "Share any other thoughts you may have."
     },
     "usageFrequency": {
-      "label": "How often do you use PocketPal AI? (Optional)",
+      "label": "How often do you use PocketServer AI? (Optional)",
       "options": {
         "daily": "Daily",
         "weekly": "Weekly",
@@ -580,7 +580,7 @@
     },
     "chatEmptyPlaceholder": {
       "noModelsTitle": "No Models Available",
-      "noModelsDescription": "Download a model to start chatting with PocketPal",
+      "noModelsDescription": "Download a model to start chatting with PocketServer",
       "noModelsButton": "Download Model",
       "activateModelTitle": "Activate Model To Get Started",
       "activateModelDescription": "Select the model and download it. After downloading, tap Load next to the model and start chatting.",
@@ -633,7 +633,7 @@
     },
     "modelErrorReportSheet": {
       "title": "Report Model Loading Issue",
-      "privacyNote": "Help us improve PocketPal by sharing details about this error. Review below what will be shared - you can deselect any items you prefer not to include.",
+      "privacyNote": "Help us improve PocketServer by sharing details about this error. Review below what will be shared - you can deselect any items you prefer not to include.",
       "errorMessage": "Error message",
       "modelInfo": "Model Information",
       "modelName": "Name",
@@ -651,7 +651,7 @@
       "submit": "Submit Report",
       "success": {
         "title": "Report Submitted",
-        "message": "Thank you for helping us improve PocketPal. Your report will help us fix this issue."
+        "message": "Thank you for helping us improve PocketServer. Your report will help us fix this issue."
       },
       "error": {
         "title": "Report Failed",
@@ -1105,7 +1105,7 @@
   },
   "camera": {
     "permissionTitle": "Camera Permission Required",
-    "permissionMessage": "PocketPal needs camera access to analyze images",
+    "permissionMessage": "PocketServer needs camera access to analyze images",
     "requestingPermission": "Requesting camera permission...",
     "noDevice": "No camera device found",
     "errorTitle": "Camera Error",
@@ -1119,7 +1119,7 @@
   },
   "video": {
     "permissionTitle": "Camera Permission Required",
-    "permissionMessage": "PocketPal needs camera access for video analysis",
+    "permissionMessage": "PocketServer needs camera access for video analysis",
     "requestingPermission": "Requesting camera permission...",
     "noDevice": "No camera device found",
     "errorTitle": "Camera Error",
@@ -1464,38 +1464,38 @@
     "skip": "Skip",
     "skipForNow": "Skip for now",
     "splash": {
-      "brand": "PocketPal"
+      "brand": "PocketServer"
     },
     "screen1": {
-      "title": "Meet your pals.",
-      "titleAccent": "pals.",
-      "body": "Smart little friends that live inside your phone.\nLet’s get you set up - it’ll take a minute.",
+      "title": "Meet your local server.",
+      "titleAccent": "server.",
+      "body": "Turn your phone into a powerful, local AI server.\nLet’s get you set up - it’ll take a minute.",
       "cta": "Show me Around",
-      "eyebrow": "Welcome to PocketPal"
+      "eyebrow": "Welcome to PocketServer"
     },
     "screen2": {
-      "title": "Anytime,\nAnywhere.",
-      "body": "Your pals live inside your phone.\nNo internet, no signal - they work on planes, off-grid, in remote villages.",
-      "highlight": "No internet, no signal",
+      "title": "Serve AI\nAnywhere.",
+      "body": "Your server lives in your pocket.\nNo internet, no tracking - host local API endpoints on your Wi-Fi network.",
+      "highlight": "host local API endpoints",
       "cta": "Next",
       "eyebrow": "The idea",
-      "titleAccent": "Anytime,"
+      "titleAccent": "Serve AI"
     },
     "screen3": {
-      "title": "Smaller,\nbut yours.",
-      "titleAccent": "Smaller,",
-      "body": "Pals on your phone are quick and private - but lighter than Cloud AI. Think pocket companion, not all-knowing oracle.",
-      "highlight": "quick and private",
+      "title": "OpenAI API\nCompatible.",
+      "body": "Your server behaves exactly like OpenAI - connect external tools like LM Studio, Open WebUI, or custom scripts.",
+      "highlight": "like OpenAI",
       "cta": "Got it",
-      "eyebrow": "A heads-up"
+      "eyebrow": "A heads-up",
+      "titleAccent": "Compatible."
     },
     "screen4": {
-      "title": "Nothing leaves your phone.",
-      "titleAccent": "leaves",
-      "body": "No accounts. No cloud. No tracking. Your conversations stay yours.",
-      "highlight": "No accounts. No cloud. No tracking.",
+      "title": "Private &\nSecure.",
+      "body": "No third-party logging. Your keys, your prompts, and your server responses stay local.",
+      "highlight": "stay local",
       "cta": "Get Started",
-      "eyebrow": "Privacy promised"
+      "eyebrow": "Privacy promised",
+      "titleAccent": "Private"
     },
     "screen5": {
       "title": "What’s your pal for?",

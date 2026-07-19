@@ -29,7 +29,7 @@ export class LocalServerStore {
   status: LocalServerStatus = 'stopped';
   config: LocalServerConfig = {
     port: 8080,
-    bindMode: 'localhost',
+    bindMode: 'lan',
     authEnabled: true,
     queueLimit: 10,
     requestTimeoutMs: 60000,

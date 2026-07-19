@@ -20,6 +20,19 @@
 <path id="Vector 2" opacity="0" d="M11.5862 122.943C61.4713 110.713 114.575 59.2184 122.943 10.9425V122.943H11.5862Z" stroke="#262626" stroke-width="5.7931" stroke-linecap="round" stroke-dasharray="9.01 13.52"/>
 <path id="Vector 12" d="M27.7677 64.8505C25.1036 59.2185 23.4943 52.7816 26.069 46.0231" stroke="white" stroke-opacity="0.4" stroke-width="5.26763" stroke-linecap="round"/>
 <path id="Vector 13" d="M28.3218 39.908C28.6957 38.5092 30.2529 35.4023 32.1839 34.4368" stroke="white" stroke-opacity="0.4" stroke-width="4.38969" stroke-linecap="round"/>
+<g id="ServerIcon" opacity="0.85">
+  <rect x="85" y="85" width="21" height="4.5" rx="0.8" fill="#323F4B"/>
+  <circle cx="88.5" cy="87.25" r="0.75" fill="#4AF2A1"/>
+  <circle cx="91.5" cy="87.25" r="0.75" fill="#38B6FF"/>
+
+  <rect x="85" y="91" width="21" height="4.5" rx="0.8" fill="#323F4B"/>
+  <circle cx="88.5" cy="93.25" r="0.75" fill="#4AF2A1"/>
+  <circle cx="91.5" cy="93.25" r="0.75" fill="#38B6FF"/>
+
+  <rect x="85" y="97" width="21" height="4.5" rx="0.8" fill="#323F4B"/>
+  <circle cx="88.5" cy="99.25" r="0.75" fill="#4AF2A1"/>
+  <circle cx="91.5" cy="99.25" r="0.75" fill="#38B6FF"/>
+</g>
 </g>
 </g>
 <defs>

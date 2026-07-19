@@ -186,11 +186,11 @@ const PAL_CODIE: OnboardingPalDef = {
     palEntry({
       tier: 'best',
       recommended: false,
-      repo: 'lmstudio-community/Qwen3.5-4B-GGUF',
-      filename: 'Qwen3.5-4B-Q4_K_M.gguf',
+      repo: 'jica98/qwen3.5-4B-super-coder',
+      filename: 'qwen3.5-4B-super-coder.Q4_0.gguf',
       params: 4205751296,
-      displayName: 'Qwen3.5 4B',
-      sizeBytes: 2707513696,
+      displayName: 'Qwen3.5 4B Super Coder',
+      sizeBytes: 2611783040,
     }),
   ],
 };

@@ -3,7 +3,7 @@
     "screenTitle": "應用程式資訊",
     "description": "一個能把語言模型直接帶到你手機上的應用程式，基於 llama.cpp 與 llama.rn 構建。",
     "supportProject": "支援此專案",
-    "supportProjectDescription": "如果您喜歡使用 PocketPal AI，請考慮透過以下方式支援此專案：",
+    "supportProjectDescription": "如果您喜歡使用 PocketServer AI，請考慮透過以下方式支援此專案：",
     "githubButton": "在 GitHub 上點讚",
     "orText": "或",
     "orBy": "或通過",
@@ -12,7 +12,7 @@
     "versionCopiedDescription": "版本資訊已複製至剪貼板",
     "privacyPolicy": "隱私權政策",
     "termsOfService": "服務條款",
-    "tourDescription": "重播歡迎畫面，以查看 PocketPal AI 提供的功能。",
+    "tourDescription": "重播歡迎畫面，以查看 PocketServer AI 提供的功能。",
     "showIntroButton": "再次顯示介紹",
     "tour": "導覽"
   },
@@ -271,7 +271,7 @@
     },
     "chatEmptyPlaceholder": {
       "noModelsTitle": "無可用模型",
-      "noModelsDescription": "下載模型後即可開始使用 PocketPal 進行聊天",
+      "noModelsDescription": "下載模型後即可開始使用 PocketServer 進行聊天",
       "noModelsButton": "下載模型",
       "activateModelTitle": "啟動模型以開始",
       "activateModelDescription": "請先選擇模型並下載。下載完成後，點擊模型右側的「載入」按鈕即可開始對話。",
@@ -518,7 +518,7 @@
       "modelSize": "大小",
       "errorMessage": "錯誤訊息",
       "title": "報告模型載入問題",
-      "privacyNote": "請分享有關此錯誤的細節，以幫助我們改進 PocketPal。以下列出將會分享的內容 - 您可以選擇不包含任何您不希望包含的項目。",
+      "privacyNote": "請分享有關此錯誤的細節，以幫助我們改進 PocketServer。以下列出將會分享的內容 - 您可以選擇不包含任何您不希望包含的項目。",
       "contextParams": "上下文參數",
       "deviceInfo": "裝置資訊",
       "deviceModel": "裝置",
@@ -529,7 +529,7 @@
       "submit": "提交報告",
       "success": {
         "title": "報告已提交",
-        "message": "感謝您協助我們改進 PocketPal。您的報告將有助於我們解決此問題。"
+        "message": "感謝您協助我們改進 PocketServer。您的報告將有助於我們解決此問題。"
       },
       "error": {
         "title": "報告失敗",
@@ -726,10 +726,10 @@
   },
   "feedback": {
     "title": "送出反饋",
-    "description": "請讓我們聽見您的心聲！告訴我們 PocketPal AI 對您的幫助，以及我們該如何進一步提升實用性。",
+    "description": "請讓我們聽見您的心聲！告訴我們 PocketServer AI 對您的幫助，以及我們該如何進一步提升實用性。",
     "shareThoughtsButton": "分享您的想法",
     "useCase": {
-      "label": "您正在使用 PocketPal AI 做什麼？",
+      "label": "您正在使用 PocketServer AI 做什麼？",
       "placeholder": "例如：摘要、角色扮演等。"
     },
     "featureRequests": {
@@ -741,7 +741,7 @@
       "placeholder": "分享您可能有的其他想法。"
     },
     "usageFrequency": {
-      "label": "您多久使用一次 PocketPal AI？（可選）",
+      "label": "您多久使用一次 PocketServer AI？（可選）",
       "options": {
         "daily": "每日",
         "weekly": "每週",
@@ -1197,7 +1197,7 @@
     "stopCamera": "停止相機",
     "errorTitle": "相機錯誤",
     "permissionTitle": "需要相機權限",
-    "permissionMessage": "PocketPal 需要使用相機，以便進行影片分析",
+    "permissionMessage": "PocketServer 需要使用相機，以便進行影片分析",
     "requestingPermission": "請求相機權限中...",
     "noDevice": "未偵測到相機裝置",
     "errorMessage": "相機發生錯誤",
@@ -1224,7 +1224,7 @@
     "startCamera": "啟動相機",
     "stopCamera": "停止相機",
     "permissionTitle": "需要相機權限",
-    "permissionMessage": "PocketPal 需要存取相機，以分析影像",
+    "permissionMessage": "PocketServer 需要存取相機，以分析影像",
     "requestingPermission": "請求相機權限中...",
     "noDevice": "未偵測到相機裝置",
     "errorMessage": "拍攝照片時發生錯誤",
@@ -1444,14 +1444,14 @@
       "deviceFreeSuffix": "GB 剩餘空間"
     },
     "splash": {
-      "brand": "PocketPal"
+      "brand": "PocketServer"
     },
     "screen1": {
       "title": "認識您的夥伴。",
       "titleAccent": "夥伴。",
       "body": "住在您手機裡的聰明小夥伴。\n讓我們開始設定吧——只需花一點時間即可。",
       "cta": "帶我導覽",
-      "eyebrow": "歡迎來到 PocketPal"
+      "eyebrow": "歡迎來到 PocketServer"
     },
     "screen2": {
       "title": "隨時，\n隨地。",

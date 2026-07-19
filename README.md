@@ -1,37 +1,37 @@
 <div align="center">
 
-<img src="src/assets/pocketpal-dark-v2.png" alt="PocketPal AI logo" width="120" />
+<img src="src/assets/pocketserver-dark-v2.png" alt="PocketServer AI logo" width="120" />
 
-# PocketPal AI
+# PocketServer AI
 
-**A private AI assistant that runs entirely on your phone.**
+**A private AI server & assistant that runs entirely on your phone.**
 
-Chat with language models, give them a voice, and let them use tools — all on-device. No account, no cloud, no internet required.
+Host local OpenAI-compatible API endpoints, chat with language models, and let them use tools — all on-device. No account, no cloud, no internet required.
 
-<a href="https://pocketpal.dev/"><strong>pocketpal.dev</strong></a> ·
+<a href="https://pocketserver.dev/"><strong>pocketserver.dev</strong></a> ·
 <a href="#get-the-app">Get the app</a> ·
-<a href="https://pocketpal.dev/leaderboard">Leaderboard</a> ·
+<a href="https://pocketserver.dev/leaderboard">Leaderboard</a> ·
 <a href="https://palshub.ai/">PalsHub</a> ·
-<a href="https://github.com/a-ghorbani/pocketpal-ai/discussions">Discussions</a>
+<a href="https://github.com/a-ghorbani/pocketserver-ai/discussions">Discussions</a>
 
 <br/>
 
-[![App Store](https://img.shields.io/badge/App_Store-Download-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/us/app/pocketpal-ai/id6502579498)
-[![Google Play](https://img.shields.io/badge/Google_Play-Get_it-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.pocketpalai)
+[![App Store](https://img.shields.io/badge/App_Store-Download-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/us/app/pocketserver-ai/id6502579498)
+[![Google Play](https://img.shields.io/badge/Google_Play-Get_it-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.pocketserverai)
 
-[![Latest release](https://img.shields.io/github/v/release/a-ghorbani/pocketpal-ai?sort=semver)](https://github.com/a-ghorbani/pocketpal-ai/releases)
-[![License: MIT](https://img.shields.io/github/license/a-ghorbani/pocketpal-ai)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/a-ghorbani/pocketpal-ai)](https://github.com/a-ghorbani/pocketpal-ai/stargazers)
-[![Open issues](https://img.shields.io/github/issues/a-ghorbani/pocketpal-ai)](https://github.com/a-ghorbani/pocketpal-ai/issues)
+[![Latest release](https://img.shields.io/github/v/release/a-ghorbani/pocketserver-ai?sort=semver)](https://github.com/a-ghorbani/pocketserver-ai/releases)
+[![License: MIT](https://img.shields.io/github/license/a-ghorbani/pocketserver-ai)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/a-ghorbani/pocketserver-ai)](https://github.com/a-ghorbani/pocketserver-ai/stargazers)
+[![Open issues](https://img.shields.io/github/issues/a-ghorbani/pocketserver-ai)](https://github.com/a-ghorbani/pocketserver-ai/issues)
 [![Sponsor](https://img.shields.io/github/sponsors/a-ghorbani?logo=githubsponsors)](https://github.com/sponsors/a-ghorbani)
 
 </div>
 
 ---
 
-## Why PocketPal AI?
+## Why PocketServer AI?
 
-Most AI apps are a thin window onto someone else's server — every message you type gets shipped off, logged, and analyzed somewhere you can't see. PocketPal flips that around: **the AI lives on your phone, and your conversations never leave it.**
+Most AI apps are a thin window onto someone else's server — every message you type gets shipped off, logged, and analyzed somewhere you can't see. PocketServer flips that around: **the AI server lives on your phone, hosting OpenAI-compatible endpoints directly on your local network.**
 
 - **🔒 Private by default** — every prompt, response, and document stays on your device. Nothing is uploaded or stored on external servers.
 - **✈️ Works offline** — download a model once and it just works, with no connection and no account. On a plane, on a trail, anywhere.
@@ -54,13 +54,14 @@ Most AI apps are a thin window onto someone else's server — every message you 
 
 ## Features
 
+- **⚡ Local API Server** — host a local, fully compatible OpenAI API server on port 8080 (or localhost), allowing external clients to query your on-device models.
 - **🧠 On-device chat** — run GGUF language models (Gemma, Qwen, Phi, Llama, and more) fully offline.
 - **🗣️ Text-to-speech** — give your assistant a voice with on-device neural TTS (Kokoro and other engines), no cloud calls.
 - **🎭 Pals** — create personalized assistants with their own model, system prompt, and personality (Assistant and Roleplay types).
 - **🛍️ [PalsHub](https://palshub.ai/)** — discover and install community Pals, including premium ones via in-app checkout.
 - **🛠️ Talents & tools** — let capable Pals call built-in tools (calculator, date/time, rich HTML rendering) inside a tool-use loop.
 - **📥 Hugging Face integration** — search and download GGUF models, including gated ones, directly from the HF Hub with your access token.
-- **📊 Benchmarking** — measure tokens/sec and memory, and optionally compare on the [AI Phone Leaderboard](https://pocketpal.dev/leaderboard).
+- **📊 Benchmarking** — measure tokens/sec and memory, and optionally compare on the [AI Phone Leaderboard](https://pocketserver.dev/leaderboard).
 - **⚡ Hardware acceleration** — CPU, GPU (Metal on iOS, OpenCL/Adreno on Android), and NPU (Qualcomm Hexagon) inference paths, with graceful fallback.
 - **🌍 Localized** — available in 11 languages, on phones and tablets, including full iPad support.
 
@@ -68,23 +69,23 @@ Most AI apps are a thin window onto someone else's server — every message you 
 
 | Platform | |
 | --- | --- |
-| **iOS / iPadOS** | [![Download on the App Store](https://img.shields.io/badge/App_Store-Download-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/us/app/pocketpal-ai/id6502579498) |
-| **Android** | [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.pocketpalai) |
+| **iOS / iPadOS** | [![Download on the App Store](https://img.shields.io/badge/App_Store-Download-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/us/app/pocketserver-ai/id6502579498) |
+| **Android** | [![Get it on Google Play](https://img.shields.io/badge/Google_Play-Get_it-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.pocketserverai) |
 
 **Three steps to your first chat:**
 
-1. **Install** PocketPal from the App Store or Google Play.
+1. **Install** PocketServer from the App Store or Google Play.
 2. **Download a model** — tap the menu (☰) → **Models**, pick one that fits your phone, and download (or add one from Hugging Face).
 3. **Load it and start chatting** — that's it, you're running AI fully offline.
 
 ## How it works
 
-You don't need to know any of this to use PocketPal — but if you're curious how a phone runs real AI offline, here's the short version.
+You don't need to know any of this to use PocketServer — but if you're curious how a phone runs real AI offline, here's the short version.
 
-PocketPal is a four-layer stack, from the silicon up to the chat UI. Each layer has one job, and the dependency direction is strictly top-down — the JS app talks to native bridges, bridges talk to inference engines, engines target hardware backends.
+PocketServer is a four-layer stack, from the silicon up to the chat UI. Each layer has one job, and the dependency direction is strictly top-down — the JS app talks to native bridges, bridges talk to inference engines, engines target hardware backends.
 
 <div align="center">
-  <img src="assets/images and logos/stack-diagram-dark.png" alt="PocketPal AI on-device stack — UI & Tool Use → Bridging → Engine → Hardware" width="100%">
+  <img src="assets/images and logos/stack-diagram-dark.png" alt="PocketServer AI on-device stack — UI & Tool Use → Bridging → Engine → Hardware" width="100%">
 </div>
 
 | Layer | What runs here |
@@ -92,7 +93,7 @@ PocketPal is a four-layer stack, from the silicon up to the chat UI. Each layer 
 | **UI & Tool Use** | The React Native app (UI via React Native Paper, state via MobX, chat history in WatermelonDB). The **`AgentRunner`** drives each chat turn — streaming tokens, dispatching **Talents** (tools) when the model calls them, and feeding results back for follow-up reasoning. **Pals** are configurable personas; **PalsHub** is the in-app marketplace for sharing and buying them. |
 | **Bridging** | Native modules that connect JavaScript to the engines. [`llama.rn`](https://github.com/mybigday/llama.rn) bridges LLM inference over JSI; [`react-native-speech`](https://github.com/a-ghorbani/react-native-speech) and `onnxruntime-react-native` bridge text-to-speech. |
 | **Engine** | The inference engines. **llama.cpp** runs language models in the quantized **GGUF** format. **ONNX Runtime** runs TTS voice models in the **ONNX** format. |
-| **Hardware** | Where the math actually happens. PocketPal targets **CPU** (universal fallback), **GPU** (Metal on iOS, OpenCL on Qualcomm Adreno for Android), and **NPU** (Qualcomm Hexagon) — falling back gracefully and offloading partial layers when a full backend isn't available. |
+| **Hardware** | Where the math actually happens. PocketServer targets **CPU** (universal fallback), **GPU** (Metal on iOS, OpenCL on Qualcomm Adreno for Android), and **NPU** (Qualcomm Hexagon) — falling back gracefully and offloading partial layers when a full backend isn't available. |
 
 ## Using the app
 
@@ -146,7 +147,7 @@ Switch personas with the Pal picker on the chat page. Browse **[PalsHub](https:/
 1. Open the **Benchmark** page.
 2. Run performance tests to compare speed and efficiency across models.
 3. Review tokens/sec and memory usage.
-4. Optionally share your results to the [AI Phone Leaderboard](https://pocketpal.dev/leaderboard).
+4. Optionally share your results to the [AI Phone Leaderboard](https://pocketserver.dev/leaderboard).
 
 <img src="assets/images and logos/Benchmark.png" alt="Benchmark" width="100%">
 </details>
@@ -157,9 +158,9 @@ Switch personas with the Pal picker on the chat page. Browse **[PalsHub](https:/
 <br/>
 
 1. Create an access token in your Hugging Face account ([docs](https://huggingface.co/docs/hub/en/security-tokens)).
-2. In PocketPal, go to **Settings → Set Token**, paste it, and save.
+2. In PocketServer, go to **Settings → Set Token**, paste it, and save.
 
-<img src="assets/images and logos/Token_in_pocketpal.png" alt="Token setup" width="66%">
+<img src="assets/images and logos/Token_in_pocketserver.png" alt="Token setup" width="66%">
 </details>
 
 <details>
@@ -174,7 +175,7 @@ Go to **App Info → "Sharing your thoughts"**, type your feedback — feature r
 
 ## For developers
 
-PocketPal is a standard React Native app. If you can build a React Native project, you can build PocketPal.
+PocketServer is a standard React Native app. If you can build a React Native project, you can build PocketServer.
 
 ### Prerequisites
 
@@ -188,8 +189,8 @@ See the [React Native environment setup](https://reactnative.dev/docs/set-up-you
 ### Clone, install & run
 
 ```bash
-git clone https://github.com/a-ghorbani/pocketpal-ai
-cd pocketpal-ai
+git clone https://github.com/a-ghorbani/pocketserver-ai
+cd pocketserver-ai
 
 nvm use                       # match the pinned Node version
 yarn install                  # install JS dependencies
@@ -259,7 +260,7 @@ Versions are pinned in [`package.json`](package.json); the highlights:
 </details>
 
 <details>
-<summary><strong>Extending PocketPal</strong></summary>
+<summary><strong>Extending PocketServer</strong></summary>
 
 <br/>
 
@@ -274,7 +275,7 @@ A **Talent** is a tool the model can call mid-conversation. Engines are register
 Good first contributions:
 - A new **Talent** — implement a `TalentEngine` and register it in `src/services/talents/`.
 - A new **TTS engine** — add it under `src/services/tts/engines/`.
-- A new **locale** — add a JSON file in `src/locales/` (or translate on [Weblate](https://hosted.weblate.org/projects/pocketpal-ai/)).
+- A new **locale** — add a JSON file in `src/locales/` (or translate on [Weblate](https://hosted.weblate.org/projects/pocketserver-ai/)).
 
 </details>
 
@@ -288,20 +289,20 @@ Contributions are welcome — bug reports, fixes, features, translations, and do
 4. Commit with [Conventional Commits](https://www.conventionalcommits.org/): `git commit -m "feat: add new talent"`
 5. Push and open a pull request.
 
-Please read the [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) first. Want to translate PocketPal into your language? Join us on [Weblate](https://hosted.weblate.org/projects/pocketpal-ai/).
+Please read the [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) first. Want to translate PocketServer into your language? Join us on [Weblate](https://hosted.weblate.org/projects/pocketserver-ai/).
 
 ## Roadmap
 
 - **Tool use expansion** — grow the Talents catalog and deepen the agentic loop so Pals can do more, fully on-device.
 
-Have an idea or found a bug? [Open an issue](https://github.com/a-ghorbani/pocketpal-ai/issues/new/choose) or start a [discussion](https://github.com/a-ghorbani/pocketpal-ai/discussions).
+Have an idea or found a bug? [Open an issue](https://github.com/a-ghorbani/pocketserver-ai/issues/new/choose) or start a [discussion](https://github.com/a-ghorbani/pocketserver-ai/discussions).
 
 ## Community & support
 
-- 💬 **Questions & ideas** — [GitHub Discussions](https://github.com/a-ghorbani/pocketpal-ai/discussions)
-- 🐛 **Bugs & requests** — [GitHub Issues](https://github.com/a-ghorbani/pocketpal-ai/issues/new/choose)
-- 🌐 **Website** — [pocketpal.dev](https://pocketpal.dev/)
-- ❤️ **Support development** — PocketPal is free and ad-free; [sponsoring](https://github.com/sponsors/a-ghorbani) helps keep it that way.
+- 💬 **Questions & ideas** — [GitHub Discussions](https://github.com/a-ghorbani/pocketserver-ai/discussions)
+- 🐛 **Bugs & requests** — [GitHub Issues](https://github.com/a-ghorbani/pocketserver-ai/issues/new/choose)
+- 🌐 **Website** — [pocketserver.dev](https://pocketserver.dev/)
+- ❤️ **Support development** — PocketServer is free and ad-free; [sponsoring](https://github.com/sponsors/a-ghorbani) helps keep it that way.
 
 ## License
 
@@ -309,7 +310,7 @@ Licensed under the [MIT License](LICENSE).
 
 ## Acknowledgements
 
-PocketPal AI stands on the shoulders of the open-source community, including:
+PocketServer AI stands on the shoulders of the open-source community, including:
 
 - **[llama.cpp](https://github.com/ggerganov/llama.cpp)** — efficient on-device LLM inference.
 - **[llama.rn](https://github.com/mybigday/llama.rn)** — llama.cpp bindings for React Native.
@@ -324,6 +325,6 @@ Made with ❤️ for people who want AI that stays on their phone.
 
 <br/>
 
-<sub>If PocketPal is useful to you, consider giving it a ⭐ — it helps others find the project.</sub>
+<sub>If PocketServer is useful to you, consider giving it a ⭐ — it helps others find the project.</sub>
 
 </div>

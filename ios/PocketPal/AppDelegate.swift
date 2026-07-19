@@ -32,7 +32,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
-      withModuleName: "PocketPal",
+      withModuleName: "pocketserver",
       in: window,
       launchOptions: launchOptions
     )

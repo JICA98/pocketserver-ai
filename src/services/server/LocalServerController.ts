@@ -173,76 +173,140 @@ export class LocalServerController {
       localServerStore.lastError = null;
     });
 
-    try {
-      this.server = TcpSockets.createServer((socket: any) => {
-        const conn = new HttpConnection(
-          socket,
-          (req, connection) => this.handleRequest(req, connection),
-          connection => this.connections.delete(connection),
-        );
-        this.connections.add(conn);
-      });
+    const host =
+      localServerStore.config.bindMode === 'localhost'
+        ? '127.0.0.1'
+        : '0.0.0.0';
+    const startPort = localServerStore.config.port;
+    const MAX_PORT_ATTEMPTS = 10;
 
-      const host =
-        localServerStore.config.bindMode === 'localhost'
-          ? '127.0.0.1'
-          : '0.0.0.0';
-      const port = localServerStore.config.port;
+    let attemptPort = startPort;
+    let lastErr: any = null;
 
-      this.server.listen({port, host, reuseAddress: true});
-
-      this.server.on('listening', () => {
-        runInAction(() => {
-          localServerStore.status = 'running';
-        });
-        localServerStore.addLogEntry(
-          'SYSTEM',
-          `Server started listening on ${host}:${port}`,
-          200,
-          0,
-        );
-        this.discoverNetworkIp();
-        if (Platform.OS === 'android') {
-          NativeServerForegroundService?.startForegroundService(
-            localServerStore.config.bindMode,
-            localServerStore.config.port,
+    for (let i = 0; i < MAX_PORT_ATTEMPTS; i++) {
+      try {
+        await this.bindOnce(host, attemptPort);
+        // Bind succeeded.
+        if (attemptPort !== startPort) {
+          // Persist the actually-used port so subsequent starts / clients use it.
+          localServerStore.updateConfig({port: attemptPort});
+          localServerStore.addLogEntry(
+            'SYSTEM',
+            `Port ${startPort} was in use; switched to ${attemptPort}.`,
+            200,
+            0,
           );
         }
-      });
-
-      this.server.on('error', (err: any) => {
-        if (__DEV__) {
-          console.error('Server error event:', err);
+        return;
+      } catch (err: any) {
+        lastErr = err;
+        const msg: string = (err?.message || '').toLowerCase();
+        const isAddrInUse =
+          msg.includes('already in use') ||
+          msg.includes('eaddrinuse') ||
+          msg.includes('bind failed');
+        if (!isAddrInUse) {
+          break;
         }
-        const errMsg = err.message || 'Port already in use or bind failed.';
-        runInAction(() => {
-          localServerStore.status = 'error';
-          localServerStore.lastError = errMsg;
-        });
-        localServerStore.addLogEntry(
-          'SYSTEM',
-          `Server error: ${errMsg}`,
-          500,
-          0,
-          errMsg,
-        );
+        // Try next port. Reset any partial state from the failed attempt.
         this.cleanup();
-      });
-    } catch (e: any) {
-      const errMsg = e.message || 'Failed to initialize server.';
-      runInAction(() => {
-        localServerStore.status = 'error';
-        localServerStore.lastError = errMsg;
-      });
-      localServerStore.addLogEntry(
-        'SYSTEM',
-        `Server initialization failed: ${errMsg}`,
-        500,
-        0,
-        errMsg,
-      );
-      this.cleanup();
+        if (Platform.OS === 'android') {
+          try {
+            await NativeServerForegroundService?.stopForegroundService();
+          } catch {
+            // ignore
+          }
+        }
+        attemptPort += 1;
+      }
     }
+
+    // All attempts failed (or a non-EADDRINUSE error).
+    const errMsg =
+      lastErr?.message || 'Failed to bind after multiple port attempts.';
+    runInAction(() => {
+      localServerStore.status = 'error';
+      localServerStore.lastError = errMsg;
+    });
+    localServerStore.addLogEntry(
+      'SYSTEM',
+      `Server error: ${errMsg}`,
+      500,
+      0,
+      errMsg,
+    );
+    this.cleanup();
+  }
+
+  /**
+   * Create a TcpSockets server, call listen() on the given host:port, and
+   * resolve once the 'listening' event fires. Rejects on 'error'.
+   * On success, sets this.server, transitions status to 'running', starts the
+   * Android foreground service, and triggers LAN IP discovery.
+   */
+  private bindOnce(host: string, port: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.server = TcpSockets.createServer((socket: any) => {
+          const conn = new HttpConnection(
+            socket,
+            (req, connection) => this.handleRequest(req, connection),
+            connection => this.connections.delete(connection),
+          );
+          this.connections.add(conn);
+        });
+
+        let settled = false;
+
+        this.server.on('listening', () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          runInAction(() => {
+            localServerStore.status = 'running';
+            localServerStore.runtimeInfo.localUrl = `http://127.0.0.1:${port}`;
+          });
+          localServerStore.addLogEntry(
+            'SYSTEM',
+            `Server started listening on ${host}:${port}`,
+            200,
+            0,
+          );
+          this.discoverNetworkIp();
+          if (Platform.OS === 'android') {
+            NativeServerForegroundService?.startForegroundService(
+              localServerStore.config.bindMode,
+              port,
+            );
+          }
+          resolve();
+        });
+
+        this.server.on('error', (err: any) => {
+          if (__DEV__) {
+            console.error('Server error event:', err);
+          }
+          if (settled) {
+            return;
+          }
+          settled = true;
+          // Tear down the just-created server so the next attempt has a
+          // clean slate.
+          try {
+            this.server?.close?.();
+          } catch {
+            // ignore
+          }
+          this.server = null;
+          reject(err);
+        });
+
+        this.server.listen({port, host, reuseAddress: true});
+      } catch (e: any) {
+        reject(e);
+      }
+    });
   }
 
   async stop(): Promise<void> {
