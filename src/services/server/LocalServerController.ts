@@ -288,11 +288,21 @@ export class LocalServerController {
   }
 
   private async discoverNetworkIp() {
+    if (localServerStore.config.bindMode !== 'lan') {
+      return;
+    }
     try {
       const ip = await DeviceInfo.getIpAddress();
-      if (ip && ip !== '0.0.0.0' && ip !== '127.0.0.1') {
+      if (
+        ip &&
+        ip !== '0.0.0.0' &&
+        ip !== '127.0.0.1' &&
+        ip !== 'unknown' &&
+        /^\d+\./.test(ip)
+      ) {
         runInAction(() => {
-          localServerStore.runtimeInfo.lanUrl = `http://${ip}:${localServerStore.config.port}`;
+          localServerStore.runtimeInfo.lanUrl =
+            `http://${ip}:${localServerStore.config.port}`;
         });
       }
     } catch (e) {
