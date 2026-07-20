@@ -33,7 +33,7 @@ export class LocalServerStore {
     authEnabled: true,
     queueLimit: 10,
     requestTimeoutMs: 60000,
-    idleTimeoutMs: 300000,
+    idleTimeoutMs: 0,
     rateLimitMax: 60,
     rateLimitWindowMs: 60000,
     manualPublicUrl: '',
