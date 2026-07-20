@@ -27,6 +27,7 @@ import {convertToChatMessages, removeThinkingParts} from '../utils/chat';
 import {activateKeepAwake, deactivateKeepAwake} from '../utils/keepAwake';
 import {
   toApiCompletionParams,
+  ensureStringArray,
   ApiCompletionParams,
   CompletionParams,
   CompletionResult,
@@ -75,7 +76,10 @@ const prepareCompletion = async ({
 }) => {
   const sessionCompletionSettings =
     await chatSessionStore.getCurrentCompletionSettings();
-  const stopWords = toJS(modelStore.activeModel?.stopWords);
+  // Always a plain string[] for llama.rn JSI asArray(stop). Bad rehydrate
+  // shapes (object) cause: "Object is an object, expected an array".
+  const stopWords =
+    ensureStringArray(toJS(modelStore.activeModel?.stopWords)) ?? [];
 
   // Check if we have images and if multimodal is enabled
   const hasImages = imageUris && imageUris.length > 0;

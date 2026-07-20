@@ -7,10 +7,63 @@ export interface HttpRequest {
   ip?: string;
 }
 
+// React Native has no Node `Buffer` global; Content-Length is UTF-8 bytes.
+function utf8ByteLength(str: string): number {
+  let len = 0;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    if (c < 0x80) {
+      len += 1;
+    } else if (c < 0x800) {
+      len += 2;
+    } else if (c >= 0xd800 && c <= 0xdbff) {
+      len += 4;
+      i++;
+    } else {
+      len += 3;
+    }
+  }
+  return len;
+}
+
+/** Slice a JS string so the result is at most `maxBytes` UTF-8 bytes. */
+function sliceUtf8ByBytes(str: string, maxBytes: number): string {
+  if (maxBytes <= 0) {
+    return '';
+  }
+  let bytes = 0;
+  let end = 0;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    let charBytes: number;
+    if (c < 0x80) {
+      charBytes = 1;
+    } else if (c < 0x800) {
+      charBytes = 2;
+    } else if (c >= 0xd800 && c <= 0xdbff) {
+      charBytes = 4;
+    } else {
+      charBytes = 3;
+    }
+    if (bytes + charBytes > maxBytes) {
+      break;
+    }
+    bytes += charBytes;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      end = i + 2;
+      i++;
+    } else {
+      end = i + 1;
+    }
+  }
+  return str.substring(0, end);
+}
+
 export class HttpConnection {
   socket: any;
   buffer = '';
   headersParsed = false;
+  requestHandled = false;
   method = '';
   path = '';
   headers: Record<string, string> = {};
@@ -69,7 +122,7 @@ export class HttpConnection {
 
       const headerPart = this.buffer.substring(0, headerEndIndex);
       this.body = this.buffer.substring(headerEndIndex + 4);
-      this.buffer = ''; // clear buffer
+      this.buffer = '';
       this.headersParsed = true;
 
       const lines = headerPart.split('\r\n');
@@ -95,6 +148,9 @@ export class HttpConnection {
 
       const lenHeader = this.headers['content-length'];
       this.contentLength = lenHeader ? parseInt(lenHeader, 10) : 0;
+      if (Number.isNaN(this.contentLength) || this.contentLength < 0) {
+        this.contentLength = 0;
+      }
 
       const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MB
       if (this.contentLength > MAX_BODY_SIZE) {
@@ -104,10 +160,17 @@ export class HttpConnection {
       }
     }
 
-    if (this.headersParsed) {
-      // Check if we have the entire body
-      if (this.body.length >= this.contentLength) {
-        const finalBody = this.body.substring(0, this.contentLength);
+    if (this.headersParsed && !this.requestHandled) {
+      // Append any subsequent TCP packets onto the body.
+      if (this.buffer.length > 0) {
+        this.body += this.buffer;
+        this.buffer = '';
+      }
+
+      // Content-Length is UTF-8 bytes, not JS string length.
+      if (utf8ByteLength(this.body) >= this.contentLength) {
+        this.requestHandled = true;
+        const finalBody = sliceUtf8ByBytes(this.body, this.contentLength);
         const req: HttpRequest = {
           method: this.method,
           path: this.path,
@@ -220,7 +283,7 @@ export class HttpConnection {
       statusText,
       {
         'Content-Type': 'application/json',
-        'Content-Length': String(errorJson.length),
+        'Content-Length': String(utf8ByteLength(errorJson)),
         Connection: 'close',
       },
       errorJson,

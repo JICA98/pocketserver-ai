@@ -56,7 +56,55 @@ const APP_ONLY_KEYS: (keyof AppOnlyCompletionParams)[] = [
 export type CompletionParams = ApiCompletionParams & AppOnlyCompletionParams;
 
 /**
+ * Coerce a value into a plain string[].
+ * llama.rn JSI calls `asArray()` on `stop` / `media_paths` without an isArray
+ * guard — a plain object (MobX rehydrate glitch, bad session JSON, etc.) throws:
+ *   "Object is an object, expected an array"
+ */
+export function ensureStringArray(value: unknown): string[] | undefined {
+  if (value == null) {
+    return undefined;
+  }
+  if (typeof value === 'string') {
+    return value.length > 0 ? [value] : undefined;
+  }
+  if (Array.isArray(value)) {
+    const out = value.map(v => String(v)).filter(v => v.length > 0);
+    return out;
+  }
+  // Array-like / rehydrated {0: 'a', 1: 'b'} without Array prototype.
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown> & {length?: unknown};
+    const maybeLen = record.length;
+    if (typeof maybeLen === 'number' && maybeLen >= 0) {
+      try {
+        const out = Array.from(value as ArrayLike<unknown>)
+          .map(v => String(v))
+          .filter(v => v.length > 0);
+        return out;
+      } catch {
+        // fall through
+      }
+    }
+    // Numeric-key object (JSON array rehydrated into plain object).
+    const keys = Object.keys(record).filter(k => k !== 'length');
+    if (
+      keys.length > 0 &&
+      keys.every(k => /^\d+$/.test(k)) &&
+      keys.every(k => typeof record[k] === 'string' || typeof record[k] === 'number')
+    ) {
+      return keys
+        .sort((a, b) => Number(a) - Number(b))
+        .map(k => String(record[k]))
+        .filter(v => v.length > 0);
+    }
+  }
+  return undefined;
+}
+
+/**
  * Strips PocketPal-specific fields before sending to llama.rn.
+ * Also normalizes array-typed native fields so JSI asArray() cannot throw.
  *
  * @param params - The app completion parameters that may include app-specific properties
  * @returns A clean API completion parameters object with only properties supported by the API
@@ -64,10 +112,73 @@ export type CompletionParams = ApiCompletionParams & AppOnlyCompletionParams;
 export function toApiCompletionParams(
   params: CompletionParams,
 ): ApiCompletionParams {
-  const apiParams: Partial<CompletionParams> = {...params};
+  const apiParams: Partial<CompletionParams> & Record<string, unknown> = {
+    ...params,
+  };
 
   for (const key of APP_ONLY_KEYS) {
     delete apiParams[key];
+  }
+
+  // stop — required shape: string[] (omit if empty/invalid)
+  if ('stop' in apiParams) {
+    const stop = ensureStringArray(apiParams.stop);
+    if (stop && stop.length > 0) {
+      // Fresh plain array — never pass MobX Proxy / array-like object to JSI.
+      apiParams.stop = stop.slice();
+    } else {
+      delete apiParams.stop;
+    }
+  }
+
+  // media_paths — native only accepts string[]
+  if ('media_paths' in apiParams) {
+    const paths = ensureStringArray(apiParams.media_paths);
+    if (paths && paths.length > 0) {
+      apiParams.media_paths = paths.slice();
+    } else {
+      delete apiParams.media_paths;
+    }
+  }
+
+  // logit_bias — native expects Array<[tokenId, bias]>, never a map object
+  if (
+    'logit_bias' in apiParams &&
+    apiParams.logit_bias != null &&
+    !Array.isArray(apiParams.logit_bias)
+  ) {
+    delete apiParams.logit_bias;
+  }
+
+  // dry_sequence_breakers / preserved_tokens / guide_tokens — array or drop
+  for (const key of [
+    'dry_sequence_breakers',
+    'preserved_tokens',
+    'guide_tokens',
+    'grammar_triggers',
+  ] as const) {
+    if (key in apiParams && apiParams[key] != null && !Array.isArray(apiParams[key])) {
+      delete apiParams[key];
+    }
+  }
+
+  // Deep-clone messages/tools so native never sees MobX proxies.
+  if (Array.isArray(apiParams.messages)) {
+    try {
+      apiParams.messages = JSON.parse(JSON.stringify(apiParams.messages));
+    } catch {
+      // keep as-is if something is non-serializable
+    }
+  }
+  if (Array.isArray(apiParams.tools)) {
+    try {
+      apiParams.tools = JSON.parse(JSON.stringify(apiParams.tools));
+    } catch {
+      // keep as-is
+    }
+  } else if (apiParams.tools != null && !Array.isArray(apiParams.tools)) {
+    // tools must be an array of definitions for AI-SDK / llama.rn
+    delete apiParams.tools;
   }
 
   return apiParams as ApiCompletionParams;

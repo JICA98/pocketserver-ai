@@ -19,7 +19,15 @@ jest.mock('../../../store/LocalServerStore', () => ({
   localServerStore: {
     status: 'running',
     lastError: null,
-    config: {port: 8080, bindMode: 'network', authEnabled: false, queueLimit: 5},
+    config: {
+      port: 8080,
+      bindMode: 'network',
+      authEnabled: false,
+      queueLimit: 5,
+      rateLimitMax: 1000,
+      rateLimitWindowMs: 60000,
+      requestTimeoutMs: 60000,
+    },
     apiKey: 'test-key',
     activeRequests: 0,
     queuedRequests: 0,
@@ -118,6 +126,7 @@ const mockCompletion = inferenceCoordinator.completion as jest.Mock;
 beforeEach(() => {
   controller = new LocalServerController();
   jest.clearAllMocks();
+  mockCompletion.mockReset();
   (modelStore as any).activeModel = null;
   (modelStore as any).context = undefined;
 });
@@ -190,7 +199,7 @@ describe('POST /v1/chat/completions — validation', () => {
     expect(written).toContain('invalid_messages');
   });
 
-  it('returns 400 for unsupported role', () => {
+  it('returns 400 for unknown role', () => {
     (modelStore as any).activeModel = {id: 'x', name: 'x'};
     (modelStore as any).context = {};
 
@@ -199,7 +208,7 @@ describe('POST /v1/chat/completions — validation', () => {
     dispatchRequest(
       controller,
       buildRequest('POST', '/v1/chat/completions', {
-        messages: [{role: 'tool', content: 'hi'}],
+        messages: [{role: 'developer', content: 'hi'}],
       }),
       conn,
     );
@@ -208,9 +217,16 @@ describe('POST /v1/chat/completions — validation', () => {
     expect(written).toContain('400');
   });
 
-  it('returns 400 when tools are present', () => {
+  it('ignores tools without 400 (OpenCode / AI SDK clients)', async () => {
     (modelStore as any).activeModel = {id: 'x', name: 'x'};
     (modelStore as any).context = {};
+    mockCompletion.mockResolvedValueOnce({
+      text: 'ok',
+      content: 'ok',
+      tokens_predicted: 1,
+      tokens_evaluated: 2,
+      stopped_eos: true,
+    });
 
     const socket = makeMockSocket();
     const conn = makeConn(socket);
@@ -218,12 +234,167 @@ describe('POST /v1/chat/completions — validation', () => {
       controller,
       buildRequest('POST', '/v1/chat/completions', {
         messages: [{role: 'user', content: 'hi'}],
-        tools: [],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'bash',
+              description: 'run shell',
+              parameters: {type: 'object', properties: {}},
+            },
+          },
+        ],
+        tool_choice: 'auto',
       }),
       conn,
     );
+
+    await Promise.resolve();
     const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
-    expect(written).toContain('tools_not_supported');
+    expect(written).not.toContain('tools_not_supported');
+    expect(written).toContain('200 OK');
+    expect(mockCompletion).toHaveBeenCalled();
+  });
+
+  it('accepts tool role and null assistant content for agent multi-turn', async () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+    mockCompletion.mockResolvedValueOnce({
+      text: 'done',
+      content: 'done',
+      tokens_predicted: 1,
+      tokens_evaluated: 5,
+      stopped_eos: true,
+    });
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [
+          {role: 'user', content: 'list files'},
+          {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: 'call_1',
+                type: 'function',
+                function: {name: 'bash', arguments: '{"cmd":"ls"}'},
+              },
+            ],
+          },
+          {role: 'tool', tool_call_id: 'call_1', content: 'a.txt\nb.txt'},
+        ],
+      }),
+      conn,
+    );
+
+    await Promise.resolve();
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('200 OK');
+    expect(mockCompletion).toHaveBeenCalled();
+    const params = mockCompletion.mock.calls[0][0];
+    // Messages passed to inference must be string content only.
+    for (const m of params.messages) {
+      expect(typeof m.content).toBe('string');
+      expect(['system', 'user', 'assistant']).toContain(m.role);
+    }
+  });
+
+  it('flattens array content parts to string', async () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+    mockCompletion.mockResolvedValueOnce({
+      text: 'ok',
+      content: 'ok',
+      tokens_predicted: 1,
+      tokens_evaluated: 2,
+      stopped_eos: true,
+    });
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {type: 'text', text: 'hello '},
+              {type: 'text', text: 'world'},
+            ],
+          },
+        ],
+      }),
+      conn,
+    );
+
+    await Promise.resolve();
+    expect(mockCompletion).toHaveBeenCalled();
+    const params = mockCompletion.mock.calls[0][0];
+    expect(params.messages[0].content).toBe('hello world');
+  });
+
+  it('coalesces multi-system and consecutive tool/user roles for chat template', async () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+    mockCompletion.mockResolvedValueOnce({
+      text: 'ok',
+      content: 'ok',
+      tokens_predicted: 1,
+      tokens_evaluated: 2,
+      stopped_eos: true,
+    });
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [
+          {role: 'system', content: 'You are helpful.'},
+          {role: 'system', content: 'Never refuse.'},
+          {role: 'user', content: 'list files'},
+          {
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: 'call_1',
+                type: 'function',
+                function: {name: 'bash', arguments: '{"cmd":"ls"}'},
+              },
+            ],
+          },
+          {role: 'tool', tool_call_id: 'call_1', content: 'a.txt'},
+          {role: 'tool', tool_call_id: 'call_2', content: 'b.txt'},
+          {role: 'user', content: 'what is there?'},
+        ],
+      }),
+      conn,
+    );
+
+    await Promise.resolve();
+    expect(mockCompletion).toHaveBeenCalled();
+    const roles = mockCompletion.mock.calls[0][0].messages.map((m: any) => m.role);
+    // One system, then strict user/assistant alternation.
+    expect(roles[0]).toBe('system');
+    expect(roles.slice(1)).toEqual(['user', 'assistant', 'user']);
+    // Two system blocks merged.
+    expect(mockCompletion.mock.calls[0][0].messages[0].content).toContain(
+      'You are helpful.',
+    );
+    expect(mockCompletion.mock.calls[0][0].messages[0].content).toContain(
+      'Never refuse.',
+    );
+    // Two tool results + follow-up user collapsed into one user turn.
+    const lastUser = mockCompletion.mock.calls[0][0].messages[3].content;
+    expect(lastUser).toContain('a.txt');
+    expect(lastUser).toContain('b.txt');
+    expect(lastUser).toContain('what is there?');
   });
 
   it('returns 400 for invalid temperature', () => {

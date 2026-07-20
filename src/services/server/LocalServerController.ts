@@ -100,6 +100,149 @@ function parseBody(body: string): any {
   }
 }
 
+/**
+ * Flatten OpenAI message content (string | parts[] | null) to a string.
+ * Used so local inference engines always receive plain text.
+ */
+function flattenMessageContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content == null) {
+    return '';
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((part: any) => {
+        if (typeof part === 'string') {
+          return part;
+        }
+        if (part?.type === 'text' || part?.text != null) {
+          return String(part.text ?? '');
+        }
+        return '';
+      })
+      .join('');
+  }
+  return '';
+}
+
+type ChatRole = 'system' | 'user' | 'assistant';
+type ChatMessage = {role: ChatRole; content: string};
+
+/**
+ * llama.cpp / minja chat templates require:
+ *  - at most one leading system message
+ *  - then strict user/assistant/user/assistant alternation
+ * OpenCode / AI SDK send multi-system, tool roles, and consecutive tool
+ * results — all of which throw:
+ *   "Unable to generate parser for this template... Conversation roles
+ *    must alternate user/assistant/user/assistant/..."
+ */
+function coalesceForChatTemplate(messages: ChatMessage[]): ChatMessage[] {
+  if (messages.length === 0) {
+    return messages;
+  }
+
+  // 1) Merge every system message into a single leading system block.
+  const systemParts: string[] = [];
+  const nonSystem: ChatMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      if (msg.content.trim()) {
+        systemParts.push(msg.content);
+      }
+    } else {
+      nonSystem.push(msg);
+    }
+  }
+
+  // 2) Merge consecutive same-role turns (e.g. tool→user + tool→user).
+  const alternating: ChatMessage[] = [];
+  for (const msg of nonSystem) {
+    // Drop empty turns — they still count as a role and break templates.
+    if (!msg.content.trim()) {
+      continue;
+    }
+    const last = alternating[alternating.length - 1];
+    if (last && last.role === msg.role) {
+      last.content = `${last.content}\n\n${msg.content}`;
+    } else {
+      alternating.push({role: msg.role, content: msg.content});
+    }
+  }
+
+  // 3) First non-system turn must be user. If transcript starts with
+  // assistant (tool-only resume), prepend a short user cue.
+  if (alternating.length > 0 && alternating[0].role === 'assistant') {
+    alternating.unshift({
+      role: 'user',
+      content: 'Continue.',
+    });
+  }
+
+  // 4) Generation expects the last message to be user. If it ends on
+  // assistant, append a continue cue so the template can open assistant.
+  if (alternating.length > 0 && alternating[alternating.length - 1].role === 'assistant') {
+    alternating.push({role: 'user', content: 'Continue.'});
+  }
+
+  const out: ChatMessage[] = [];
+  if (systemParts.length > 0) {
+    out.push({role: 'system', content: systemParts.join('\n\n')});
+  }
+  out.push(...alternating);
+  return out;
+}
+
+/**
+ * Normalize chat messages for on-device inference.
+ * Accepts OpenAI/AI-SDK wire shapes (tool role, null content, tool_calls,
+ * multipart content) and maps them to system/user/assistant + string content
+ * that satisfies llama.cpp chat-template alternation rules.
+ */
+function normalizeMessagesForInference(messages: any[]): ChatMessage[] {
+  const raw: ChatMessage[] = [];
+
+  for (const msg of messages) {
+    if (!msg || typeof msg !== 'object') {
+      continue;
+    }
+
+    let content = flattenMessageContent(msg.content);
+
+    if (msg.role === 'tool') {
+      const id = msg.tool_call_id ? ` ${msg.tool_call_id}` : '';
+      raw.push({
+        role: 'user',
+        content: content
+          ? `[tool result${id}]\n${content}`
+          : `[tool result${id}]`,
+      });
+      continue;
+    }
+
+    if (msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      const calls = msg.tool_calls
+        .map((tc: any) => {
+          const name = tc?.function?.name ?? tc?.name ?? 'tool';
+          const args = tc?.function?.arguments ?? tc?.arguments ?? '';
+          return `${name}(${typeof args === 'string' ? args : JSON.stringify(args)})`;
+        })
+        .join('\n');
+      content = content
+        ? `${content}\n[tool calls]\n${calls}`
+        : `[tool calls]\n${calls}`;
+    }
+
+    if (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') {
+      raw.push({role: msg.role, content});
+    }
+  }
+
+  return coalesceForChatTemplate(raw);
+}
+
 function sendJson(
   conn: HttpConnection,
   statusCode: number,
@@ -445,6 +588,13 @@ export class LocalServerController {
     // Reset idle timeout on every request
     this.resetIdleTimer();
 
+    // CORS headers first — needed by rate-limit responses too.
+    const corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    };
+
     // Rate limiting
     const ip = req.ip ?? 'unknown';
     const rateMax = localServerStore.config.rateLimitMax;
@@ -452,14 +602,14 @@ export class LocalServerController {
     const now = Date.now();
     const entry = this.rateLimitMap.get(ip);
     if (entry && now < entry.resetAt) {
-      if (entry.count >= rateMax) {
+      if (rateMax > 0 && entry.count >= rateMax) {
         const rateLimitBody = JSON.stringify({
           error: {message: 'Rate limit exceeded.', type: 'server_error', param: null, code: 'rate_limit_exceeded'},
         });
         conn.sendResponse(429, 'Too Many Requests', {
           ...corsHeaders,
           'Content-Type': 'application/json',
-          'Content-Length': String(Buffer.byteLength(rateLimitBody, 'utf8')),
+          'Content-Length': String(utf8ByteLength(rateLimitBody)),
         }, rateLimitBody);
         localServerStore.addLogEntry(
           req.method, req.path, 429,
@@ -469,15 +619,8 @@ export class LocalServerController {
       }
       entry.count++;
     } else {
-      this.rateLimitMap.set(ip, {count: 1, resetAt: now + rateWindow});
+      this.rateLimitMap.set(ip, {count: 1, resetAt: now + (rateWindow || 60000)});
     }
-
-    // 1. CORS Headers Middleware
-    const corsHeaders: Record<string, string> = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    };
 
     if (req.method === 'OPTIONS') {
       conn.sendResponse(204, 'No Content', corsHeaders, '');
@@ -675,9 +818,30 @@ export class LocalServerController {
       return;
     }
 
+    // OpenCode / @ai-sdk/openai-compatible always send tools. Local GGUF path
+    // cannot execute them yet — ignore tools/tool_choice and answer text-only.
+    // Multi-turn tool transcripts are normalized into plain messages below.
+    if ((parsed.tools || parsed.functions) && __DEV__) {
+      console.warn(
+        '[LocalServer] Ignoring tools/functions in request — tool execution not supported yet.',
+      );
+    }
+
+    // Normalize OpenAI wire messages → plain string content for llama.rn.
+    const normalizedMessages = normalizeMessagesForInference(messages);
+    if (normalizedMessages.length === 0) {
+      sendApiError(
+        conn, 400, 'Bad Request', corsHeaders,
+        "'messages' must contain at least one usable chat message.",
+        'invalid_request_error', 'invalid_messages',
+      );
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'No usable messages.');
+      return;
+    }
+
     const MAX_PROMPT_CHARS = 65536;
-    const promptChars = messages.reduce(
-      (sum: number, m: any) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0,
+    const promptChars = normalizedMessages.reduce(
+      (sum: number, m) => sum + m.content.length, 0,
     );
     if (promptChars > MAX_PROMPT_CHARS) {
       sendApiError(conn, 400, 'Bad Request', corsHeaders,
@@ -697,19 +861,9 @@ export class LocalServerController {
       return;
     }
 
-    if (parsed.tools || parsed.functions) {
-      sendApiError(
-        conn, 400, 'Bad Request', corsHeaders,
-        'Tool calls are not supported by the on-device inference server.',
-        'invalid_request_error', 'tools_not_supported',
-      );
-      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Tools not supported.');
-      return;
-    }
-
     // Build completion params
     const completionParams: any = {
-      messages,
+      messages: normalizedMessages,
       requestSource: 'server',
     };
     if (temperature !== undefined) {
@@ -762,14 +916,20 @@ export class LocalServerController {
     // Abort on socket close
     conn.socket.once('close', () => abortController.abort());
 
-    const timeoutMs = localServerStore.config.requestTimeoutMs;
-    const completionPromise = inferenceCoordinator.completion(completionParams);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Request timed out.')), timeoutMs),
-    );
+    const timeoutMs = localServerStore.config.requestTimeoutMs || 60000;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      abortController.abort();
+    }, timeoutMs);
 
-    Promise.race([completionPromise, timeoutPromise])
+    inferenceCoordinator
+      .completion(completionParams)
       .then((result: CompletionResult) => {
+        clearTimeout(timer);
+        if (timedOut || conn.isClosed) {
+          return;
+        }
         const duration = Date.now() - startTime;
         const finishReason = mapFinishReason(result);
         const response = {
@@ -797,12 +957,18 @@ export class LocalServerController {
         localServerStore.addLogEntry('POST', req.path, 200, duration);
       })
       .catch((err: Error) => {
-        const duration = Date.now() - startTime;
+        clearTimeout(timer);
         if (conn.isClosed) {
           return;
         }
-        const sanitized = sanitizeErrorMessage(err);
-        if (err.message?.includes('busy') || err.message?.includes('Queue limit')) {
+        const duration = Date.now() - startTime;
+        const sanitized = timedOut
+          ? sanitizeErrorMessage(new Error('Request timed out.'))
+          : sanitizeErrorMessage(err);
+        if (timedOut) {
+          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, sanitized, 'server_error', 'timeout');
+          localServerStore.addLogEntry('POST', req.path, 500, duration, 'Request timed out.');
+        } else if (err.message?.includes('busy') || err.message?.includes('Queue limit')) {
           sendApiError(conn, 429, 'Too Many Requests', corsHeaders, sanitized, 'server_error', 'rate_limit_exceeded');
           localServerStore.addLogEntry('POST', req.path, 429, duration, err.message);
         } else if (err.message?.includes('No GGUF model')) {
@@ -853,7 +1019,7 @@ export class LocalServerController {
     conn.socket.once('close', () => abortController.abort());
 
     let timedOut = false;
-    const timeoutMs = localServerStore.config.requestTimeoutMs;
+    const timeoutMs = localServerStore.config.requestTimeoutMs || 60000;
     const timer = setTimeout(() => {
       timedOut = true;
       abortController.abort();
@@ -1126,16 +1292,23 @@ export class LocalServerController {
     if (!Array.isArray(messages) || messages.length === 0) {
       return "'messages' must be a non-empty array.";
     }
-    const allowedRoles = new Set(['system', 'user', 'assistant']);
+    // tool role required by OpenAI tool-call multi-turn / OpenCode agent loops.
+    const allowedRoles = new Set(['system', 'user', 'assistant', 'tool']);
     for (const msg of messages) {
       if (!msg || typeof msg !== 'object') {
         return 'Each message must be an object.';
       }
       if (!allowedRoles.has(msg.role)) {
-        return `Unsupported role '${msg.role}'. Allowed: system, user, assistant.`;
+        return `Unsupported role '${msg.role}'. Allowed: system, user, assistant, tool.`;
       }
-      if (typeof msg.content !== 'string' && !Array.isArray(msg.content)) {
-        return "Each message must have a 'content' string field.";
+      // content may be string, multipart array, null, or omitted (assistant tool_calls).
+      if (
+        msg.content !== undefined &&
+        msg.content !== null &&
+        typeof msg.content !== 'string' &&
+        !Array.isArray(msg.content)
+      ) {
+        return "Each message 'content' must be a string, array of parts, or null.";
       }
       if (Array.isArray(msg.content)) {
         for (const part of msg.content) {
