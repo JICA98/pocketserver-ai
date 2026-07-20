@@ -128,9 +128,10 @@ function sendApiError(
   message: string,
   type: string = 'invalid_request_error',
   code: string | null = null,
+  param: string | null = null,
 ) {
   sendJson(conn, statusCode, statusText, corsHeaders, {
-    error: {message, type, param: null, code},
+    error: {message, type, param, code},
   });
 }
 
@@ -452,7 +453,14 @@ export class LocalServerController {
     const entry = this.rateLimitMap.get(ip);
     if (entry && now < entry.resetAt) {
       if (entry.count >= rateMax) {
-        conn.sendError(429, 'Too Many Requests', 'Rate limit exceeded.');
+        const rateLimitBody = JSON.stringify({
+          error: {message: 'Rate limit exceeded.', type: 'server_error', param: null, code: 'rate_limit_exceeded'},
+        });
+        conn.sendResponse(429, 'Too Many Requests', {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Content-Length': String(Buffer.byteLength(rateLimitBody, 'utf8')),
+        }, rateLimitBody);
         localServerStore.addLogEntry(
           req.method, req.path, 429,
           Date.now() - startTime, `Rate limit exceeded for ${ip}`,
@@ -619,7 +627,6 @@ export class LocalServerController {
             object: 'model',
             created: nowSecs(),
             owned_by: 'local',
-            name: activeModel.name,
           },
         ]
       : [];
@@ -643,7 +650,6 @@ export class LocalServerController {
       return;
     }
 
-    // Model must be loaded
     if (!localServerStore.isModelReady) {
       sendApiError(
         conn, 503, 'Service Unavailable', corsHeaders,
@@ -654,7 +660,6 @@ export class LocalServerController {
       return;
     }
 
-    // Parse body
     const parsed = parseBody(req.body);
     if (!parsed) {
       sendApiError(conn, 400, 'Bad Request', corsHeaders, 'Invalid JSON body.', 'invalid_request_error', 'invalid_json');
@@ -662,7 +667,6 @@ export class LocalServerController {
       return;
     }
 
-    // Validate messages
     const {messages, stream = false, temperature, top_p, max_tokens, stop, model} = parsed;
     const validationError = this.validateChatMessages(messages);
     if (validationError) {
@@ -671,7 +675,6 @@ export class LocalServerController {
       return;
     }
 
-    // Prompt context limit
     const MAX_PROMPT_CHARS = 65536;
     const promptChars = messages.reduce(
       (sum: number, m: any) => sum + (typeof m.content === 'string' ? m.content.length : 0), 0,
@@ -683,19 +686,17 @@ export class LocalServerController {
       return;
     }
 
-    // Validate numeric params
     if (temperature !== undefined && (typeof temperature !== 'number' || temperature < 0 || temperature > 2)) {
-      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'temperature must be a number between 0 and 2.', 'invalid_request_error', 'invalid_temperature');
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'temperature must be a number between 0 and 2.', 'invalid_request_error', 'invalid_temperature', 'temperature');
       localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid temperature.');
       return;
     }
     if (top_p !== undefined && (typeof top_p !== 'number' || top_p <= 0 || top_p > 1)) {
-      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'top_p must be a number between 0 and 1.', 'invalid_request_error', 'invalid_top_p');
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'top_p must be a number between 0 and 1.', 'invalid_request_error', 'invalid_top_p', 'top_p');
       localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid top_p.');
       return;
     }
 
-    // Unsupported: tools/response_format
     if (parsed.tools || parsed.functions) {
       sendApiError(
         conn, 400, 'Bad Request', corsHeaders,
@@ -959,6 +960,17 @@ export class LocalServerController {
       return;
     }
 
+    if (temperature !== undefined && (typeof temperature !== 'number' || temperature < 0 || temperature > 2)) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'temperature must be a number between 0 and 2.', 'invalid_request_error', 'invalid_temperature', 'temperature');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid temperature.');
+      return;
+    }
+    if (top_p !== undefined && (typeof top_p !== 'number' || top_p <= 0 || top_p > 1)) {
+      sendApiError(conn, 400, 'Bad Request', corsHeaders, 'top_p must be a number between 0 and 1.', 'invalid_request_error', 'invalid_top_p', 'top_p');
+      localServerStore.addLogEntry(req.method, req.path, 400, Date.now() - startTime, 'Invalid top_p.');
+      return;
+    }
+
     const completionParams: any = {
       prompt,
       requestSource: 'server',
@@ -1004,7 +1016,7 @@ export class LocalServerController {
           object: 'text_completion',
           created: nowSecs(),
           model: activeModelId,
-          choices: [{text: token, index: 0, finish_reason: null}],
+          choices: [{text: token, index: 0, logprobs: null, finish_reason: null}],
         };
         conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
       };
@@ -1021,7 +1033,7 @@ export class LocalServerController {
             object: 'text_completion',
             created: nowSecs(),
             model: activeModelId,
-            choices: [{text: '', index: 0, finish_reason: finishReason}],
+            choices: [{text: '', index: 0, logprobs: null, finish_reason: finishReason}],
           };
           conn.sendStreamChunk(`data: ${JSON.stringify(finalChunk)}\n\n`);
           conn.sendStreamChunk('data: [DONE]\n\n');
@@ -1052,6 +1064,7 @@ export class LocalServerController {
               {
                 text: result.text ?? result.content ?? '',
                 index: 0,
+                logprobs: null,
                 finish_reason: mapFinishReason(result),
               },
             ],
@@ -1071,7 +1084,14 @@ export class LocalServerController {
           if (conn.isClosed) {
             return;
           }
-          sendApiError(conn, 500, 'Internal Server Error', corsHeaders, err.message ?? 'Inference failed.', 'server_error', 'inference_error');
+          const sanitized = sanitizeErrorMessage(err);
+          if (err.message?.includes('busy') || err.message?.includes('Queue limit')) {
+            sendApiError(conn, 429, 'Too Many Requests', corsHeaders, sanitized, 'server_error', 'rate_limit_exceeded');
+          } else if (err.message?.includes('No GGUF model')) {
+            sendApiError(conn, 503, 'Service Unavailable', corsHeaders, sanitized, 'server_error', 'model_not_loaded');
+          } else {
+            sendApiError(conn, 500, 'Internal Server Error', corsHeaders, sanitized, 'server_error', 'inference_error');
+          }
           localServerStore.addLogEntry('POST', req.path, 500, duration, err.message);
         });
     }
