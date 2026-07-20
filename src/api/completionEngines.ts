@@ -20,11 +20,17 @@ export class LocalCompletionEngine implements CompletionEngine {
     callback?: (data: CompletionStreamData) => void,
   ): Promise<CompletionResult> {
     // Plain clone so MobX proxies never reach llama.rn / JSI asArray.
+    // Preserve AbortSignal (not JSON-serializable) for disconnect cancel.
+    const signal = (params as any).signal as AbortSignal | undefined;
     let plainParams: ApiCompletionParams = params;
     try {
-      plainParams = JSON.parse(JSON.stringify(params)) as ApiCompletionParams;
+      const {signal: _s, ...rest} = params as any;
+      plainParams = JSON.parse(JSON.stringify(rest)) as ApiCompletionParams;
     } catch {
       plainParams = {...params};
+    }
+    if (signal) {
+      (plainParams as any).signal = signal;
     }
     if (plainParams.stop != null) {
       plainParams.stop = Array.isArray(plainParams.stop)

@@ -217,7 +217,7 @@ describe('POST /v1/chat/completions — validation', () => {
     expect(written).toContain('400');
   });
 
-  it('ignores tools without 400 (OpenCode / AI SDK clients)', async () => {
+  it('forwards tools to inference with jinja (OpenCode / AI SDK clients)', async () => {
     (modelStore as any).activeModel = {id: 'x', name: 'x'};
     (modelStore as any).context = {};
     mockCompletion.mockResolvedValueOnce({
@@ -230,20 +230,21 @@ describe('POST /v1/chat/completions — validation', () => {
 
     const socket = makeMockSocket();
     const conn = makeConn(socket);
+    const tools = [
+      {
+        type: 'function',
+        function: {
+          name: 'bash',
+          description: 'run shell',
+          parameters: {type: 'object', properties: {}},
+        },
+      },
+    ];
     dispatchRequest(
       controller,
       buildRequest('POST', '/v1/chat/completions', {
         messages: [{role: 'user', content: 'hi'}],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'bash',
-              description: 'run shell',
-              parameters: {type: 'object', properties: {}},
-            },
-          },
-        ],
+        tools,
         tool_choice: 'auto',
       }),
       conn,
@@ -254,6 +255,55 @@ describe('POST /v1/chat/completions — validation', () => {
     expect(written).not.toContain('tools_not_supported');
     expect(written).toContain('200 OK');
     expect(mockCompletion).toHaveBeenCalled();
+    const params = mockCompletion.mock.calls[0][0];
+    expect(params.tools).toEqual(tools);
+    expect(params.tool_choice).toBe('auto');
+    expect(params.jinja).toBe(true);
+  });
+
+  it('returns tool_calls in non-stream response', async () => {
+    (modelStore as any).activeModel = {id: 'x', name: 'x'};
+    (modelStore as any).context = {};
+    mockCompletion.mockResolvedValueOnce({
+      text: '',
+      content: '',
+      tokens_predicted: 5,
+      tokens_evaluated: 10,
+      tool_calls: [
+        {
+          id: 'call_1',
+          type: 'function',
+          function: {name: 'bash', arguments: '{"cmd":"ls"}'},
+        },
+      ],
+    });
+
+    const socket = makeMockSocket();
+    const conn = makeConn(socket);
+    dispatchRequest(
+      controller,
+      buildRequest('POST', '/v1/chat/completions', {
+        messages: [{role: 'user', content: 'list files'}],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'bash',
+              description: 'run shell',
+              parameters: {type: 'object', properties: {}},
+            },
+          },
+        ],
+      }),
+      conn,
+    );
+
+    await Promise.resolve();
+    const written = socket.write.mock.calls.map((c: any) => c[0]).join('');
+    expect(written).toContain('200 OK');
+    expect(written).toContain('"finish_reason":"tool_calls"');
+    expect(written).toContain('"name":"bash"');
+    expect(written).toContain('call_1');
   });
 
   it('accepts tool role and null assistant content for agent multi-turn', async () => {

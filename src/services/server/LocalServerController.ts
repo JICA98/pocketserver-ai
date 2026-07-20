@@ -77,6 +77,9 @@ function sanitizeErrorMessage(err: Error): string {
 }
 
 function mapFinishReason(result: CompletionResult): string {
+  if (result.tool_calls && result.tool_calls.length > 0) {
+    return 'tool_calls';
+  }
   if (result.stopped_eos) {
     return 'stop';
   }
@@ -90,6 +93,30 @@ function mapFinishReason(result: CompletionResult): string {
     return 'stop';
   }
   return 'stop';
+}
+
+/** Map llama.rn ToolCall[] → OpenAI message.tool_calls shape. */
+function toOpenAIToolCalls(
+  toolCalls: CompletionResult['tool_calls'],
+): Array<{
+  id: string;
+  type: 'function';
+  function: {name: string; arguments: string};
+}> | undefined {
+  if (!toolCalls || toolCalls.length === 0) {
+    return undefined;
+  }
+  return toolCalls.map((tc, i) => ({
+    id: tc.id || `call_${i}`,
+    type: 'function' as const,
+    function: {
+      name: tc.function?.name ?? '',
+      arguments:
+        typeof tc.function?.arguments === 'string'
+          ? tc.function.arguments
+          : JSON.stringify(tc.function?.arguments ?? {}),
+    },
+  }));
 }
 
 function parseBody(body: string): any {
@@ -127,17 +154,20 @@ function flattenMessageContent(content: unknown): string {
   return '';
 }
 
-type ChatRole = 'system' | 'user' | 'assistant';
-type ChatMessage = {role: ChatRole; content: string};
+type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
+type ChatMessage = {
+  role: ChatRole;
+  content: string;
+  tool_call_id?: string;
+  tool_calls?: any[];
+  name?: string;
+};
 
 /**
- * llama.cpp / minja chat templates require:
+ * llama.cpp / minja chat templates (without tools) require:
  *  - at most one leading system message
  *  - then strict user/assistant/user/assistant alternation
- * OpenCode / AI SDK send multi-system, tool roles, and consecutive tool
- * results — all of which throw:
- *   "Unable to generate parser for this template... Conversation roles
- *    must alternate user/assistant/user/assistant/..."
+ * With tools, OAI tool/assistant.tool_calls roles are kept for jinja.
  */
 function coalesceForChatTemplate(messages: ChatMessage[]): ChatMessage[] {
   if (messages.length === 0) {
@@ -158,22 +188,38 @@ function coalesceForChatTemplate(messages: ChatMessage[]): ChatMessage[] {
   }
 
   // 2) Merge consecutive same-role turns (e.g. tool→user + tool→user).
+  // Never merge assistant rows that carry tool_calls — each is a turn.
   const alternating: ChatMessage[] = [];
   for (const msg of nonSystem) {
-    // Drop empty turns — they still count as a role and break templates.
-    if (!msg.content.trim()) {
+    const hasToolCalls =
+      msg.role === 'assistant' &&
+      Array.isArray(msg.tool_calls) &&
+      msg.tool_calls.length > 0;
+    // Drop empty text turns unless they carry tool metadata.
+    if (!msg.content.trim() && !hasToolCalls && msg.role !== 'tool') {
       continue;
     }
     const last = alternating[alternating.length - 1];
-    if (last && last.role === msg.role) {
-      last.content = `${last.content}\n\n${msg.content}`;
+    const lastHasToolCalls =
+      last?.role === 'assistant' &&
+      Array.isArray(last.tool_calls) &&
+      last.tool_calls.length > 0;
+    if (
+      last &&
+      last.role === msg.role &&
+      msg.role !== 'tool' &&
+      !hasToolCalls &&
+      !lastHasToolCalls
+    ) {
+      last.content = last.content
+        ? `${last.content}\n\n${msg.content}`
+        : msg.content;
     } else {
-      alternating.push({role: msg.role, content: msg.content});
+      alternating.push({...msg});
     }
   }
 
-  // 3) First non-system turn must be user. If transcript starts with
-  // assistant (tool-only resume), prepend a short user cue.
+  // 3) First non-system turn must be user (text-only templates).
   if (alternating.length > 0 && alternating[0].role === 'assistant') {
     alternating.unshift({
       role: 'user',
@@ -181,9 +227,15 @@ function coalesceForChatTemplate(messages: ChatMessage[]): ChatMessage[] {
     });
   }
 
-  // 4) Generation expects the last message to be user. If it ends on
-  // assistant, append a continue cue so the template can open assistant.
-  if (alternating.length > 0 && alternating[alternating.length - 1].role === 'assistant') {
+  // 4) Generation expects last message user when no tools in flight.
+  // If last is assistant with tool_calls, client will send tool results next —
+  // do not inject "Continue." (that breaks the tool loop).
+  const last = alternating[alternating.length - 1];
+  if (
+    last &&
+    last.role === 'assistant' &&
+    !(Array.isArray(last.tool_calls) && last.tool_calls.length > 0)
+  ) {
     alternating.push({role: 'user', content: 'Continue.'});
   }
 
@@ -198,10 +250,16 @@ function coalesceForChatTemplate(messages: ChatMessage[]): ChatMessage[] {
 /**
  * Normalize chat messages for on-device inference.
  * Accepts OpenAI/AI-SDK wire shapes (tool role, null content, tool_calls,
- * multipart content) and maps them to system/user/assistant + string content
- * that satisfies llama.cpp chat-template alternation rules.
+ * multipart content).
+ *
+ * @param preserveTools when true, keep `tool` role + assistant.tool_calls so
+ *   llama.rn jinja can emit/parse tool calls (OpenCode / LM Studio style).
+ *   when false, flatten tools into user/assistant text for plain chat templates.
  */
-function normalizeMessagesForInference(messages: any[]): ChatMessage[] {
+function normalizeMessagesForInference(
+  messages: any[],
+  preserveTools: boolean = false,
+): ChatMessage[] {
   const raw: ChatMessage[] = [];
 
   for (const msg of messages) {
@@ -212,17 +270,34 @@ function normalizeMessagesForInference(messages: any[]): ChatMessage[] {
     let content = flattenMessageContent(msg.content);
 
     if (msg.role === 'tool') {
-      const id = msg.tool_call_id ? ` ${msg.tool_call_id}` : '';
-      raw.push({
-        role: 'user',
-        content: content
-          ? `[tool result${id}]\n${content}`
-          : `[tool result${id}]`,
-      });
+      if (preserveTools) {
+        raw.push({
+          role: 'tool',
+          content,
+          tool_call_id: msg.tool_call_id,
+          name: msg.name,
+        });
+      } else {
+        const id = msg.tool_call_id ? ` ${msg.tool_call_id}` : '';
+        raw.push({
+          role: 'user',
+          content: content
+            ? `[tool result${id}]\n${content}`
+            : `[tool result${id}]`,
+        });
+      }
       continue;
     }
 
     if (msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      if (preserveTools) {
+        raw.push({
+          role: 'assistant',
+          content,
+          tool_calls: msg.tool_calls,
+        });
+        continue;
+      }
       const calls = msg.tool_calls
         .map((tc: any) => {
           const name = tc?.function?.name ?? tc?.name ?? 'tool';
@@ -818,17 +893,20 @@ export class LocalServerController {
       return;
     }
 
-    // OpenCode / @ai-sdk/openai-compatible always send tools. Local GGUF path
-    // cannot execute them yet — ignore tools/tool_choice and answer text-only.
-    // Multi-turn tool transcripts are normalized into plain messages below.
-    if ((parsed.tools || parsed.functions) && __DEV__) {
-      console.warn(
-        '[LocalServer] Ignoring tools/functions in request — tool execution not supported yet.',
-      );
-    }
+    // OpenAI tools (OpenCode / AI SDK / LM Studio). Forward to llama.rn jinja
+    // so the model can emit structured tool_calls — same path as in-app chat.
+    const requestTools = Array.isArray(parsed.tools)
+      ? parsed.tools
+      : Array.isArray(parsed.functions)
+        ? parsed.functions.map((fn: any) => ({
+            type: 'function',
+            function: fn,
+          }))
+        : undefined;
+    const hasTools = !!(requestTools && requestTools.length > 0);
 
-    // Normalize OpenAI wire messages → plain string content for llama.rn.
-    const normalizedMessages = normalizeMessagesForInference(messages);
+    // Normalize OpenAI wire messages for llama.rn.
+    const normalizedMessages = normalizeMessagesForInference(messages, hasTools);
     if (normalizedMessages.length === 0) {
       sendApiError(
         conn, 400, 'Bad Request', corsHeaders,
@@ -841,7 +919,7 @@ export class LocalServerController {
 
     const MAX_PROMPT_CHARS = 65536;
     const promptChars = normalizedMessages.reduce(
-      (sum: number, m) => sum + m.content.length, 0,
+      (sum: number, m) => sum + (m.content?.length ?? 0), 0,
     );
     if (promptChars > MAX_PROMPT_CHARS) {
       sendApiError(conn, 400, 'Bad Request', corsHeaders,
@@ -861,11 +939,21 @@ export class LocalServerController {
       return;
     }
 
-    // Build completion params
+    // Build completion params — mirror in-app chat: jinja + tools for tool-use models.
     const completionParams: any = {
       messages: normalizedMessages,
       requestSource: 'server',
+      jinja: true,
     };
+    if (hasTools) {
+      completionParams.tools = requestTools;
+      if (parsed.tool_choice !== undefined) {
+        completionParams.tool_choice = parsed.tool_choice;
+      }
+      if (parsed.parallel_tool_calls !== undefined) {
+        completionParams.parallel_tool_calls = parsed.parallel_tool_calls;
+      }
+    }
     if (temperature !== undefined) {
       completionParams.temperature = temperature;
     }
@@ -880,6 +968,12 @@ export class LocalServerController {
     }
     if (stop !== undefined) {
       completionParams.stop = Array.isArray(stop) ? stop : [stop];
+    }
+
+    if (hasTools && __DEV__) {
+      console.log(
+        `[LocalServer] tools enabled: ${requestTools!.length} definition(s)`,
+      );
     }
 
     const completionId = makeId();
@@ -932,6 +1026,8 @@ export class LocalServerController {
         }
         const duration = Date.now() - startTime;
         const finishReason = mapFinishReason(result);
+        const toolCalls = toOpenAIToolCalls(result.tool_calls);
+        const textContent = result.content ?? result.text ?? '';
         const response = {
           id: completionId,
           object: 'chat.completion',
@@ -940,7 +1036,12 @@ export class LocalServerController {
           choices: [
             {
               index: 0,
-              message: {role: 'assistant', content: result.text ?? result.content ?? ''},
+              message: {
+                role: 'assistant',
+                // OpenAI: content is null when the model only tool-calls.
+                content: toolCalls ? textContent || null : textContent,
+                ...(toolCalls ? {tool_calls: toolCalls} : {}),
+              },
               finish_reason: finishReason,
             },
           ],
@@ -954,7 +1055,13 @@ export class LocalServerController {
           },
         };
         sendJson(conn, 200, 'OK', corsHeaders, response);
-        localServerStore.addLogEntry('POST', req.path, 200, duration);
+        localServerStore.addLogEntry(
+          'POST',
+          req.path,
+          200,
+          duration,
+          toolCalls ? `tool_calls=${toolCalls.length}` : undefined,
+        );
       })
       .catch((err: Error) => {
         clearTimeout(timer);
@@ -1025,22 +1132,77 @@ export class LocalServerController {
       abortController.abort();
     }, timeoutMs);
 
+    // llama.rn often re-sends full tool_calls each token; emit OpenAI-style
+    // incremental argument deltas so AI SDK / OpenCode can accumulate.
+    const sentToolArgs = new Map<number, string>();
+    const sentToolMeta = new Set<number>();
+
     const streamCallback = (data: CompletionStreamData) => {
       if (timedOut || conn.isClosed) {
         return;
       }
+
       const token = data.token ?? data.content ?? '';
-      if (!token) {
-        return;
+      if (token) {
+        const chunk = {
+          id: completionId,
+          object: 'chat.completion.chunk',
+          created: nowSecs(),
+          model: activeModelId,
+          choices: [{index: 0, delta: {content: token}, finish_reason: null}],
+        };
+        conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
       }
-      const chunk = {
-        id: completionId,
-        object: 'chat.completion.chunk',
-        created: nowSecs(),
-        model: activeModelId,
-        choices: [{index: 0, delta: {content: token}, finish_reason: null}],
-      };
-      conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
+
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        const deltas: any[] = [];
+        data.tool_calls.forEach((tc, i) => {
+          const fullArgs =
+            typeof tc.function?.arguments === 'string'
+              ? tc.function.arguments
+              : JSON.stringify(tc.function?.arguments ?? {});
+          const prevArgs = sentToolArgs.get(i) ?? '';
+          const argDelta = fullArgs.startsWith(prevArgs)
+            ? fullArgs.slice(prevArgs.length)
+            : fullArgs;
+          sentToolArgs.set(i, fullArgs);
+
+          const first = !sentToolMeta.has(i);
+          if (first) {
+            sentToolMeta.add(i);
+          }
+          if (!first && !argDelta) {
+            return;
+          }
+          deltas.push({
+            index: i,
+            ...(first
+              ? {
+                  id: tc.id || `call_${i}`,
+                  type: 'function',
+                  function: {
+                    name: tc.function?.name ?? '',
+                    arguments: argDelta,
+                  },
+                }
+              : {
+                  function: {arguments: argDelta},
+                }),
+          });
+        });
+        if (deltas.length > 0) {
+          const chunk = {
+            id: completionId,
+            object: 'chat.completion.chunk',
+            created: nowSecs(),
+            model: activeModelId,
+            choices: [
+              {index: 0, delta: {tool_calls: deltas}, finish_reason: null},
+            ],
+          };
+          conn.sendStreamChunk(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+      }
     };
 
     inferenceCoordinator
@@ -1050,8 +1212,32 @@ export class LocalServerController {
         if (timedOut || conn.isClosed) {
           return;
         }
+        // Flush any tool_calls only present on the final result.
+        if (result.tool_calls && result.tool_calls.length > 0 && sentToolMeta.size === 0) {
+          const deltas = result.tool_calls.map((tc, i) => ({
+            index: i,
+            id: tc.id || `call_${i}`,
+            type: 'function' as const,
+            function: {
+              name: tc.function?.name ?? '',
+              arguments:
+                typeof tc.function?.arguments === 'string'
+                  ? tc.function.arguments
+                  : JSON.stringify(tc.function?.arguments ?? {}),
+            },
+          }));
+          const toolChunk = {
+            id: completionId,
+            object: 'chat.completion.chunk',
+            created: nowSecs(),
+            model: activeModelId,
+            choices: [
+              {index: 0, delta: {tool_calls: deltas}, finish_reason: null},
+            ],
+          };
+          conn.sendStreamChunk(`data: ${JSON.stringify(toolChunk)}\n\n`);
+        }
         const finishReason = mapFinishReason(result);
-        // Final chunk with finish_reason
         const finalChunk = {
           id: completionId,
           object: 'chat.completion.chunk',
@@ -1062,7 +1248,15 @@ export class LocalServerController {
         conn.sendStreamChunk(`data: ${JSON.stringify(finalChunk)}\n\n`);
         conn.sendStreamChunk('data: [DONE]\n\n');
         conn.endStream();
-        localServerStore.addLogEntry('POST', req.path, 200, Date.now() - startTime);
+        localServerStore.addLogEntry(
+          'POST',
+          req.path,
+          200,
+          Date.now() - startTime,
+          result.tool_calls?.length
+            ? `tool_calls=${result.tool_calls.length}`
+            : undefined,
+        );
       })
       .catch((err: Error) => {
         clearTimeout(timer);
