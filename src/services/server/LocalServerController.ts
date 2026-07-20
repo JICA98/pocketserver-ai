@@ -1010,11 +1010,20 @@ export class LocalServerController {
     // Abort on socket close
     conn.socket.once('close', () => abortController.abort());
 
-    const timeoutMs = localServerStore.config.requestTimeoutMs || 60000;
+    // Tools inflate prompts a lot — give prefill more wall time.
+    const baseTimeout = localServerStore.config.requestTimeoutMs || 300000;
+    const timeoutMs = completionParams.tools?.length
+      ? Math.max(baseTimeout, 600000)
+      : baseTimeout;
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       abortController.abort();
+      if (__DEV__) {
+        console.warn(
+          `[LocalServer] non-stream request timed out after ${timeoutMs}ms`,
+        );
+      }
     }, timeoutMs);
 
     inferenceCoordinator
@@ -1123,19 +1132,42 @@ export class LocalServerController {
     conn.sendStreamChunk(`data: ${JSON.stringify(roleDelta)}\n\n`);
 
     // Abort on client disconnect
-    conn.socket.once('close', () => abortController.abort());
+    conn.socket.once('close', () => {
+      if (__DEV__) {
+        console.warn('[LocalServer] client closed stream socket — aborting');
+      }
+      abortController.abort();
+    });
 
     let timedOut = false;
-    const timeoutMs = localServerStore.config.requestTimeoutMs || 60000;
+    const baseTimeout = localServerStore.config.requestTimeoutMs || 300000;
+    const timeoutMs = completionParams.tools?.length
+      ? Math.max(baseTimeout, 600000)
+      : baseTimeout;
     const timer = setTimeout(() => {
       timedOut = true;
       abortController.abort();
+      if (__DEV__) {
+        console.warn(
+          `[LocalServer] stream request timed out after ${timeoutMs}ms`,
+        );
+      }
     }, timeoutMs);
+
+    // Keep the SSE connection warm during long prompt eval (tool schemas
+    // often push 5k–15k tokens on-device). Many clients treat silence as death.
+    const keepalive = setInterval(() => {
+      if (timedOut || conn.isClosed) {
+        return;
+      }
+      conn.sendStreamChunk(': keepalive\n\n');
+    }, 10000);
 
     // llama.rn often re-sends full tool_calls each token; emit OpenAI-style
     // incremental argument deltas so AI SDK / OpenCode can accumulate.
     const sentToolArgs = new Map<number, string>();
     const sentToolMeta = new Set<number>();
+    let firstTokenLogged = false;
 
     const streamCallback = (data: CompletionStreamData) => {
       if (timedOut || conn.isClosed) {
@@ -1144,6 +1176,14 @@ export class LocalServerController {
 
       const token = data.token ?? data.content ?? '';
       if (token) {
+        if (!firstTokenLogged) {
+          firstTokenLogged = true;
+          if (__DEV__) {
+            console.log(
+              `[LocalServer] first token after ${Date.now() - startTime}ms`,
+            );
+          }
+        }
         const chunk = {
           id: completionId,
           object: 'chat.completion.chunk',
@@ -1209,6 +1249,7 @@ export class LocalServerController {
       .completion(completionParams, streamCallback)
       .then((result: CompletionResult) => {
         clearTimeout(timer);
+        clearInterval(keepalive);
         if (timedOut || conn.isClosed) {
           return;
         }
@@ -1260,17 +1301,33 @@ export class LocalServerController {
       })
       .catch((err: Error) => {
         clearTimeout(timer);
-        if (timedOut || conn.isClosed) {
+        clearInterval(keepalive);
+        if (conn.isClosed) {
+          localServerStore.addLogEntry(
+            'POST',
+            req.path,
+            499,
+            Date.now() - startTime,
+            timedOut ? 'Timed out' : err.message || 'Client disconnected',
+          );
           return;
         }
-        const sanitized = sanitizeErrorMessage(err);
+        const sanitized = timedOut
+          ? sanitizeErrorMessage(new Error('Request timed out.'))
+          : sanitizeErrorMessage(err);
         const errChunk = {
           error: {message: sanitized, type: 'server_error'},
         };
         conn.sendStreamChunk(`data: ${JSON.stringify(errChunk)}\n\n`);
         conn.sendStreamChunk('data: [DONE]\n\n');
         conn.endStream();
-        localServerStore.addLogEntry('POST', req.path, 500, Date.now() - startTime, err.message);
+        localServerStore.addLogEntry(
+          'POST',
+          req.path,
+          timedOut ? 504 : 500,
+          Date.now() - startTime,
+          err.message,
+        );
       });
   }
 

@@ -32,7 +32,9 @@ export class LocalServerStore {
     bindMode: 'lan',
     authEnabled: true,
     queueLimit: 10,
-    requestTimeoutMs: 60000,
+    // OpenCode/tool schemas often yield 5k–15k prompt tokens; phone prefill
+    // alone can exceed 60s. Default 5 minutes so clients are not cut off mid-eval.
+    requestTimeoutMs: 300000,
     idleTimeoutMs: 0,
     rateLimitMax: 60,
     rateLimitWindowMs: 60000,
@@ -143,10 +145,15 @@ export class LocalServerStore {
       }
     } catch (error) {
       console.error('Failed to load local server API key:', error);
-      // Memory fallback if keychain fails
-      runInAction(() => {
-        this.apiKey = this.generateRandomKey();
-      });
+      // Corrupt keychain entry (reinstall / signing change) — regenerate + re-store
+      // so authEnabled servers keep a stable key the UI can display.
+      try {
+        await this.generateAndStoreApiKey();
+      } catch {
+        runInAction(() => {
+          this.apiKey = this.generateRandomKey();
+        });
+      }
     }
   }
 
