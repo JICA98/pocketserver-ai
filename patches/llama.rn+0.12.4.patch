@@ -1,0 +1,181 @@
+--- a/node_modules/llama.rn/src/index.ts	1985-10-26 08:15:00.000000000 +0000
++++ b/node_modules/llama.rn/src/index.ts	2026-07-20 14:19:43.211375917 +0000
+@@ -76,6 +76,70 @@
+ 
+ export const RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER = '<__media__>'
+ 
++/**
++ * llama.rn JSI parseCompletionParams calls asArray() without isArray guards on
++ * stop / media_paths / logit_bias. Proxies, array-likes, or leftover JS-only
++ * fields (messages, tools, reasoning, …) can throw:
++ *   "Object is an object, expected an array"
++ * Force plain dense arrays and strip fields already consumed by formatting.
++ */
++function sanitizeNativeCompletionParams(nativeParams: Record<string, any>) {
++  const forcePlainArray = (key: string) => {
++    const v = nativeParams[key]
++    if (v == null) return
++    if (!Array.isArray(v)) {
++      delete nativeParams[key]
++      return
++    }
++    nativeParams[key] = Array.from(v).map((item: any) => {
++      if (item != null && typeof item === 'object' && !Array.isArray(item)) {
++        return { ...item }
++      }
++      return item
++    })
++  }
++
++  forcePlainArray('stop')
++  forcePlainArray('media_paths')
++  forcePlainArray('preserved_tokens')
++  forcePlainArray('grammar_triggers')
++  forcePlainArray('guide_tokens')
++  forcePlainArray('dry_sequence_breakers')
++
++  if (nativeParams.logit_bias != null) {
++    if (!Array.isArray(nativeParams.logit_bias)) {
++      delete nativeParams.logit_bias
++    } else {
++      nativeParams.logit_bias = Array.from(nativeParams.logit_bias)
++        .filter((el: any) => Array.isArray(el))
++        .map((el: any) => Array.from(el))
++    }
++  }
++
++  // Already applied by getFormattedChat / not part of NativeCompletionParams
++  const strip = [
++    'messages',
++    'tools',
++    'tool_choice',
++    'response_format',
++    'jinja',
++    'enable_thinking',
++    'chat_template_kwargs',
++    'chatTemplate',
++    'chat_template',
++    'reasoning',
++    'parallel_tool_calls',
++    'add_generation_prompt',
++    'now',
++    'force_pure_content',
++    'include_thinking_in_context',
++    'version',
++  ]
++  for (const k of strip) {
++    delete nativeParams[k]
++  }
++}
++
+ const logListeners: Array<(level: string, text: string) => void> = []
+ const emitNativeLog = (level: string, text: string) => {
+   logListeners.forEach((listener) => listener(level, text))
+@@ -413,11 +477,18 @@
+           if (jinjaResult.preserved_tokens)
+             nativeParams.preserved_tokens = jinjaResult.preserved_tokens
+           if (jinjaResult.additional_stops) {
+-            if (!nativeParams.stop) nativeParams.stop = []
+-            nativeParams.stop.push(...jinjaResult.additional_stops)
++            const base = Array.isArray(nativeParams.stop)
++              ? Array.from(nativeParams.stop as string[])
++              : []
++            const extra = Array.isArray(jinjaResult.additional_stops)
++              ? Array.from(jinjaResult.additional_stops)
++              : []
++            nativeParams.stop = [...base, ...extra]
+           }
+           if (jinjaResult.has_media) {
+-            nativeParams.media_paths = jinjaResult.media_paths
++            nativeParams.media_paths = Array.isArray(jinjaResult.media_paths)
++              ? Array.from(jinjaResult.media_paths)
++              : jinjaResult.media_paths
+           }
+           if (typeof jinjaResult.generation_prompt === 'string')
+             nativeParams.generation_prompt = jinjaResult.generation_prompt
+@@ -433,7 +504,9 @@
+           const llamaChatResult = formattedResult as FormattedChatResult
+           nativeParams.prompt = llamaChatResult.prompt || ''
+           if (llamaChatResult.has_media) {
+-            nativeParams.media_paths = llamaChatResult.media_paths
++            nativeParams.media_paths = Array.isArray(llamaChatResult.media_paths)
++              ? Array.from(llamaChatResult.media_paths)
++              : llamaChatResult.media_paths
+           }
+         }
+       } else {
+@@ -441,7 +514,9 @@
+       }
+ 
+       if (!nativeParams.media_paths && params.media_paths) {
+-        nativeParams.media_paths = params.media_paths
++        nativeParams.media_paths = Array.isArray(params.media_paths)
++          ? Array.from(params.media_paths)
++          : params.media_paths
+       }
+ 
+       if (params.response_format && !nativeParams.grammar) {
+@@ -451,6 +526,8 @@
+ 
+       if (!nativeParams.prompt) throw new Error('Prompt is required')
+ 
++      sanitizeNativeCompletionParams(nativeParams as Record<string, any>)
++
+       return new Promise(async (resolveOuter, rejectOuter) => {
+         try {
+           let resolveResult: (
+@@ -824,11 +901,18 @@
+         if (jinjaResult.preserved_tokens)
+           nativeParams.preserved_tokens = jinjaResult.preserved_tokens
+         if (jinjaResult.additional_stops) {
+-          if (!nativeParams.stop) nativeParams.stop = []
+-          nativeParams.stop.push(...jinjaResult.additional_stops)
++          const base = Array.isArray(nativeParams.stop)
++            ? Array.from(nativeParams.stop as string[])
++            : []
++          const extra = Array.isArray(jinjaResult.additional_stops)
++            ? Array.from(jinjaResult.additional_stops)
++            : []
++          nativeParams.stop = [...base, ...extra]
+         }
+         if (jinjaResult.has_media) {
+-          nativeParams.media_paths = jinjaResult.media_paths
++          nativeParams.media_paths = Array.isArray(jinjaResult.media_paths)
++            ? Array.from(jinjaResult.media_paths)
++            : jinjaResult.media_paths
+         }
+         if (typeof jinjaResult.generation_prompt === 'string')
+           nativeParams.generation_prompt = jinjaResult.generation_prompt
+@@ -844,7 +928,9 @@
+         const llamaChatResult = formattedResult as FormattedChatResult
+         nativeParams.prompt = llamaChatResult.prompt || ''
+         if (llamaChatResult.has_media) {
+-          nativeParams.media_paths = llamaChatResult.media_paths
++          nativeParams.media_paths = Array.isArray(llamaChatResult.media_paths)
++            ? Array.from(llamaChatResult.media_paths)
++            : llamaChatResult.media_paths
+         }
+       }
+     } else {
+@@ -852,7 +938,11 @@
+     }
+ 
+     if (!nativeParams.media_paths && params.media_paths) {
+-      nativeParams.media_paths = params.media_paths
++      nativeParams.media_paths = Array.isArray(params.media_paths)
++        ? Array.from(params.media_paths)
++        : typeof params.media_paths === 'string'
++          ? [params.media_paths]
++          : params.media_paths
+     }
+ 
+     if (params.response_format && !nativeParams.grammar) {
+@@ -862,6 +952,8 @@
+ 
+     if (!nativeParams.prompt) throw new Error('Prompt is required')
+ 
++    sanitizeNativeCompletionParams(nativeParams as Record<string, any>)
++
+     const { llamaCompletion } = getJsi()
+     return llamaCompletion(this.id, nativeParams, callback)
+   }
