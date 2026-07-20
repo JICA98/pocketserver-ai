@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/pocketserver-dark-v2.png" alt="PocketServer AI logo" width="120" />
+<img src="src/assets/pocketserver-logo-master.png" alt="PocketServer AI logo" width="120" />
 
 # PocketServer AI
 
@@ -12,18 +12,18 @@ Host local OpenAI-compatible API endpoints, chat with language models, and let t
 <a href="#get-the-app">Get the app</a> ·
 <a href="https://pocketserver.dev/leaderboard">Leaderboard</a> ·
 <a href="https://palshub.ai/">PalsHub</a> ·
-<a href="https://github.com/a-ghorbani/pocketserver-ai/discussions">Discussions</a>
+<a href="https://github.com/JICA98/pocketserver-ai/discussions">Discussions</a>
 
 <br/>
 
 [![App Store](https://img.shields.io/badge/App_Store-Download-0D96F6?logo=apple&logoColor=white)](https://apps.apple.com/us/app/pocketserver-ai/id6502579498)
 [![Google Play](https://img.shields.io/badge/Google_Play-Get_it-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.pocketserverai)
 
-[![Latest release](https://img.shields.io/github/v/release/a-ghorbani/pocketserver-ai?sort=semver)](https://github.com/a-ghorbani/pocketserver-ai/releases)
-[![License: MIT](https://img.shields.io/github/license/a-ghorbani/pocketserver-ai)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/a-ghorbani/pocketserver-ai)](https://github.com/a-ghorbani/pocketserver-ai/stargazers)
-[![Open issues](https://img.shields.io/github/issues/a-ghorbani/pocketserver-ai)](https://github.com/a-ghorbani/pocketserver-ai/issues)
-[![Sponsor](https://img.shields.io/github/sponsors/a-ghorbani?logo=githubsponsors)](https://github.com/sponsors/a-ghorbani)
+[![Latest release](https://img.shields.io/github/v/release/JICA98/pocketserver-ai?include_prereleases&sort=semver&label=Latest%20release)](https://github.com/JICA98/pocketserver-ai/releases)
+[![License: MIT](https://img.shields.io/github/license/JICA98/pocketserver-ai)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/JICA98/pocketserver-ai)](https://github.com/JICA98/pocketserver-ai/stargazers)
+[![Open issues](https://img.shields.io/github/issues/JICA98/pocketserver-ai)](https://github.com/JICA98/pocketserver-ai/issues)
+[![Sponsor](https://img.shields.io/badge/Sponsor-♥-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/JICA98)
 
 </div>
 
@@ -189,7 +189,7 @@ See the [React Native environment setup](https://reactnative.dev/docs/set-up-you
 ### Clone, install & run
 
 ```bash
-git clone https://github.com/a-ghorbani/pocketserver-ai
+git clone https://github.com/JICA98/pocketserver-ai
 cd pocketserver-ai
 
 nvm use                       # match the pinned Node version
@@ -295,14 +295,14 @@ Please read the [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct]
 
 - **Tool use expansion** — grow the Talents catalog and deepen the agentic loop so Pals can do more, fully on-device.
 
-Have an idea or found a bug? [Open an issue](https://github.com/a-ghorbani/pocketserver-ai/issues/new/choose) or start a [discussion](https://github.com/a-ghorbani/pocketserver-ai/discussions).
+Have an idea or found a bug? [Open an issue](https://github.com/JICA98/pocketserver-ai/issues/new/choose) or start a [discussion](https://github.com/JICA98/pocketserver-ai/discussions).
 
 ## Community & support
 
-- 💬 **Questions & ideas** — [GitHub Discussions](https://github.com/a-ghorbani/pocketserver-ai/discussions)
-- 🐛 **Bugs & requests** — [GitHub Issues](https://github.com/a-ghorbani/pocketserver-ai/issues/new/choose)
+- 💬 **Questions & ideas** — [GitHub Discussions](https://github.com/JICA98/pocketserver-ai/discussions)
+- 🐛 **Bugs & requests** — [GitHub Issues](https://github.com/JICA98/pocketserver-ai/issues/new/choose)
 - 🌐 **Website** — [pocketserver.dev](https://pocketserver.dev/)
-- ❤️ **Support development** — PocketServer is free and ad-free; [sponsoring](https://github.com/sponsors/a-ghorbani) helps keep it that way.
+- ❤️ **Support development** — PocketServer is free and ad-free; [sponsoring](https://github.com/sponsors/JICA98) helps keep it that way.
 
 ## License
 
